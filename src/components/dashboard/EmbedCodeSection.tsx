@@ -90,9 +90,17 @@ export function EmbedCodeSection() {
   const [keyVisible,   setKeyVisible]   = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
 
-  const origin    = typeof window !== "undefined"
+  /* Browser: always resolves to the real deployment URL (dev or prod).
+     SSR fallback chain: NEXT_PUBLIC_APP_URL → NEXT_PUBLIC_SITE_URL →
+     NEXT_PUBLIC_BASE_URL → hardcoded Vercel production origin.
+     The localhost fallback is intentionally removed so generated snippets
+     are never stamped with a dev URL in any server-rendered context. */
+  const origin = typeof window !== "undefined"
     ? window.location.origin
-    : (process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000");
+    : (process.env.NEXT_PUBLIC_APP_URL
+        ?? process.env.NEXT_PUBLIC_SITE_URL
+        ?? process.env.NEXT_PUBLIC_BASE_URL
+        ?? "https://cyber-agent-studio.vercel.app");
   const widgetUrl = `${origin}/widget/${activeAgentId ?? "YOUR_AGENT_ID"}`;
   const agentIdDisplay = activeAgentId ?? "YOUR_AGENT_ID";
 

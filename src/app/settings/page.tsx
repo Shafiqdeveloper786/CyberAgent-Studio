@@ -218,26 +218,33 @@ function ProfileSection() {
         <div className="absolute -bottom-10 -right-10 w-32 h-32 rounded-full pointer-events-none"
           style={{ background: "radial-gradient(circle,rgba(168,85,247,0.08),transparent 70%)" }} />
 
-        {/* Avatar */}
-        <div className="relative">
+        {/* Avatar — strict circle: aspect-square enforces 1:1, rounded-full clips it */}
+        <div className="relative w-24 h-24 shrink-0">
           {image ? (
-            <div className="w-24 h-24 rounded-2xl overflow-hidden"
+            <div className="w-full h-full aspect-square rounded-full overflow-hidden"
               style={{ boxShadow: "0 0 30px rgba(0,242,255,0.35), 0 0 60px rgba(0,242,255,0.15)", animation: "ca-breathe 3s ease-in-out infinite" }}>
-              <Image src={image} alt={name || "Profile"} width={96} height={96} className="w-full h-full object-cover" />
+              <Image
+                src={image}
+                alt={name || "Profile"}
+                width={96}
+                height={96}
+                className="w-full h-full object-cover rounded-full"
+              />
             </div>
           ) : (
-            <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-[30px] font-black select-none"
+            <div className="w-full h-full aspect-square rounded-full flex items-center justify-center text-[30px] font-black select-none"
               style={{ background: "linear-gradient(135deg,#00f2ff,#a855f7)", color: "#050508", animation: "ca-breathe 3s ease-in-out infinite" }}>
               {status === "loading" ? "…" : initials}
             </div>
           )}
+          {/* Status dot — bottom-right of the fixed 96×96 wrapper */}
           {status === "authenticated" && (
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
+            <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 pointer-events-none"
               style={{ background: "#00ff94", borderColor: "#050508", boxShadow: "0 0 10px rgba(0,255,148,0.8)" }} />
           )}
         </div>
 
-        {/* Name */}
+        {/* Name — always outside and below the avatar block */}
         {name && <p className="text-[18px] font-black text-[#e2e8f0] -mb-2">{name}</p>}
 
         {/* Email */}
