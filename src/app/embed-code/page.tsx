@@ -570,7 +570,9 @@ export default function EmbedCodePage() {
   async>
 </script>`;
 
-  const NEXTJS_SNIPPET = `import Script from 'next/script';
+  /* Layout snippet — shows how to consume the component */
+  const NEXTJS_SNIPPET = `// app/layout.tsx  (App Router)
+import { AgentEmbedScript } from './components/AgentEmbedScript';
 
 export default function RootLayout({ children }) {
   return (
@@ -578,16 +580,43 @@ export default function RootLayout({ children }) {
       <body>
         {children}
 
-        {/* Live CyberAgent Instance — Hydration Safe */}
-        <Script
-          src={\`\${window?.location?.origin || 'http://localhost:3000'}/embed.js\`}
-          strategy="afterInteractive"
-          data-agent-id="${agentId}"
-          data-accent-color="${accentColor || "#00f2ff"}"
+        {/* Zero-hydration widget — no SSR mismatch, no localhost leak */}
+        <AgentEmbedScript
+          agentId="${agentId}"
+          accentColor="${accentColor || "#00f2ff"}"
         />
       </body>
     </html>
   );
+}`;
+
+  /* Component snippet — the client component the user copies into their repo */
+  const NEXTJS_COMPONENT_SNIPPET = `"use client";
+import { useEffect } from 'react';
+
+const PROD_ORIGIN = 'https://cyber-agent-studio.vercel.app';
+
+export function AgentEmbedScript({ agentId, accentColor = '${accentColor || "#00f2ff"}' }) {
+  useEffect(() => {
+    if (document.getElementById('cyberagent-embed')) return;
+
+    // Always use the live runtime origin; fall back to prod on localhost
+    const base = window.location.origin.includes('localhost')
+      ? PROD_ORIGIN
+      : window.location.origin;
+
+    const s = document.createElement('script');
+    s.id = 'cyberagent-embed';
+    s.src = \`\${base}/embed.js?ts=\${Date.now()}\`;
+    s.defer = true;
+    s.setAttribute('data-agent-id',     agentId);
+    s.setAttribute('data-accent-color', accentColor);
+    document.body.appendChild(s);
+
+    return () => document.getElementById('cyberagent-embed')?.remove();
+  }, [agentId, accentColor]);
+
+  return null; // renders nothing — zero SSR surface, no hydration mismatch
 }`;
 
   const REACT_SNIPPET = `import { useEffect } from 'react';
@@ -938,29 +967,38 @@ NEXT_PUBLIC_BASE_URL=${siteOrigin}`;
                 </div>
               )}
 
-              {/* ── nextjs: Next.js Layout ── */}
+              {/* ── nextjs: Next.js — zero-hydration AgentEmbedScript pattern ── */}
               {frameworkTab === "nextjs" && (
-                <div key="tab-nextjs" className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ animation: "tab-slide 0.18s ease-out" }}>
-                  <div className="space-y-5">
-                    <TerminalBlock
-                      code={NEXTJS_SNIPPET} title="app/layout.tsx" lang="TSX" accent="#a855f7"
-                      tokenize={tokenizeTSX} copied={copied === "nextjs"} onCopy={() => copy(NEXTJS_SNIPPET, "nextjs")} isLive={isLive}
-                    />
-                    <InfoCallout emoji="⚡" title="No install required" from="#a855f7" to="#ec4899"
-                      body={<>Uses <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.1)", color: "#c084fc" }}>&lt;Script strategy=&quot;afterInteractive&quot;&gt;</code> — deferred load, zero blocking.</>}
-                    />
-                    <InfoCallout emoji="💡" title="Next.js Integration Guide" from="#a855f7" to="#06b6d4"
-                      body={<>Open <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.08)", color: "#c084fc" }}>src/app/layout.tsx</code> and paste the <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.08)", color: "#c084fc" }}>&lt;Script&gt;</code> block below <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.08)", color: "#c084fc" }}>{"{children}"}</code>. Works with App Router and Pages Router.</>}
-                    />
-                  </div>
-                  <div className="space-y-5">
-                    <TerminalBlock
-                      code={ENV_SNIPPET} title=".env.local" lang="ENV" accent="#00ff94"
-                      tokenize={tokenizeEnv} copied={copied === "env"} onCopy={() => copy(ENV_SNIPPET, "env")} isLive={isLive}
-                    />
-                    <InfoCallout emoji="🔐" title="Security First" from="#f59e0b" to="#ef4444"
-                      body={<>Never commit <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(245,158,11,0.12)", color: "#fbbf24" }}>.env.local</code> to version control. Set variables in your hosting dashboard for production.</>}
-                    />
+                <div key="tab-nextjs" className="space-y-5" style={{ animation: "tab-slide 0.18s ease-out" }}>
+                  {/* Step 1 — component file */}
+                  <TerminalBlock
+                    code={NEXTJS_COMPONENT_SNIPPET} title="components/AgentEmbedScript.tsx" lang="TSX" accent="#a855f7"
+                    tokenize={tokenizeTSX} copied={copied === "nextjs-component"} onCopy={() => copy(NEXTJS_COMPONENT_SNIPPET, "nextjs-component")} isLive={isLive}
+                  />
+                  <InfoCallout emoji="⚡" title="Zero-hydration pattern" from="#a855f7" to="#ec4899"
+                    body={<>Returns <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.1)", color: "#c084fc" }}>null</code> on the server and first client render — no SSR output, no hydration surface, no React Error #418. The script tag is injected purely via <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.1)", color: "#c084fc" }}>useEffect</code> after hydration completes.</>}
+                  />
+
+                  {/* Step 2 — layout.tsx usage */}
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <div className="space-y-5">
+                      <TerminalBlock
+                        code={NEXTJS_SNIPPET} title="app/layout.tsx" lang="TSX" accent="#a855f7"
+                        tokenize={tokenizeTSX} copied={copied === "nextjs"} onCopy={() => copy(NEXTJS_SNIPPET, "nextjs")} isLive={isLive}
+                      />
+                      <InfoCallout emoji="💡" title="Next.js Integration Guide" from="#a855f7" to="#06b6d4"
+                        body={<>Copy <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.08)", color: "#c084fc" }}>AgentEmbedScript.tsx</code> into your project, then add it to <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.08)", color: "#c084fc" }}>app/layout.tsx</code>. Works with App Router and Pages Router — no next/script required.</>}
+                      />
+                    </div>
+                    <div className="space-y-5">
+                      <TerminalBlock
+                        code={ENV_SNIPPET} title=".env.local" lang="ENV" accent="#00ff94"
+                        tokenize={tokenizeEnv} copied={copied === "env"} onCopy={() => copy(ENV_SNIPPET, "env")} isLive={isLive}
+                      />
+                      <InfoCallout emoji="🔐" title="Security First" from="#f59e0b" to="#ef4444"
+                        body={<>Never commit <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(245,158,11,0.12)", color: "#fbbf24" }}>.env.local</code> to version control. Set variables in your hosting dashboard for production.</>}
+                      />
+                    </div>
                   </div>
                 </div>
               )}

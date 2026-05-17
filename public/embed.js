@@ -1,5 +1,5 @@
 /**
- * CyberAgent Studio — Embed Script  v11
+ * CyberAgent Studio — Embed Script  v12
  * Drop a single <script> tag anywhere; no other JS required.
  *
  * Usage:
@@ -80,6 +80,9 @@
     container.classList.remove("nexa-expanded");
     btn.innerHTML = BOT_SVG;
     btn.setAttribute("aria-label", "Open CyberAgent chat");
+    /* Restore launcher bubble — it was hidden on expand so the iframe
+       input area was never obscured by the circular button backdrop.  */
+    btn.style.display = "";
     document.body.style.overflow = savedOverflow || "";
     savedOverflow = "";
     open = false;
@@ -88,8 +91,10 @@
 
   function expand() {
     container.classList.add("nexa-expanded");
-    btn.innerHTML = CLOSE_SVG;
-    btn.setAttribute("aria-label", "Close CyberAgent chat");
+    /* Hide the launcher button entirely when the panel is open.
+       The iframe's own X button is the sole close trigger (via postMessage).
+       This eliminates the circular button overlapping the chat text input.  */
+    btn.style.display = "none";
     if (isMobile()) {
       savedOverflow = document.body.style.overflow || "";
       document.body.style.overflow = "hidden";
