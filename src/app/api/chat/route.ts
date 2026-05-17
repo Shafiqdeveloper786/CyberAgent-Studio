@@ -172,37 +172,45 @@ export async function POST(req: Request) {
     );
   }
 
-  /* ── 7. Stream from Groq with automatic key rotation on 429 ────────────────
-     WHY rotation lives inside ReadableStream.start():
-       streamText() is a lazy initialiser — it configures the request but makes
-       NO network call until its textStream async-iterable is consumed.
-       Any 429 / 401 / timeout therefore throws inside "for await", not at the
-       streamText() call site. Catching it at init-time is useless.
-       By placing the entire init + consumption loop inside ReadableStream.start()
-       we own the full lifecycle and can retry with the next key before any bytes
-       reach the client.
+  /* ── 7. Stream from Groq — unconditional key rotation + lightweight fallback ─
+     ROOT CAUSE OF PREVIOUS FAILURE:
+       The old code gated hot-swap on `is429`, computed by regex-matching
+       err.message. The Vercel AI SDK wraps provider errors in AI_RetryError /
+       AI_APICallError composite objects. The real status code lives on
+       err.cause.statusCode, NOT err.message — so the regex hit nothing,
+       is429 was false, and the code skipped the `continue` and returned
+       immediately with a fallback message instead of trying the next key.
 
-     Rotation policy:
-       • 429 (rate-limit) with tokensSent === 0 → hot-swap to next key, retry
-       • 429 after partial send → cannot retry cleanly; close stream as-is
-       • Non-429 error (auth, timeout, model-not-found) → emit fallback, close
-       • All keys exhausted → emit "all channels rate-limited" message         */
+     CORRECTED ROTATION POLICY (no error-type discrimination):
+       • ANY exception on slot i, tokensSent === 0, next slot exists
+         → unconditional hot-swap (continue)
+       • ANY exception on slot i, tokensSent > 0
+         → partial flush already sent — cannot retry; close cleanly
+       • All primary slots exhausted, tokensSent === 0
+         → last-resort attempt with lightweight llama3-8b-8192
+       • Lightweight fallback also fails
+         → emit plain-text user message and close                             */
 
   const usingVision   = hasImageContent(safeMessages);
   const selectedModel = usingVision ? GROQ_VISION_MODEL : GROQ_MODEL;
-  const encoder       = new TextEncoder();
+  const FALLBACK_MODEL = "llama3-8b-8192";
+  const encoder        = new TextEncoder();
 
   const safeStream = new ReadableStream({
     async start(controller) {
-      let lastErr: unknown = null;
+      let lastErr: unknown   = null;
+      let primarySucceeded   = false;
 
-      for (let keyIdx = 0; keyIdx < GROQ_KEY_POOL.length; keyIdx++) {
+      /* ── Phase A: Primary rotation across all key slots ── */
+      for (let i = 0; i < GROQ_KEY_POOL.length; i++) {
         let tokensSent = 0;
 
         try {
-          console.log(`[chat] Key slot [${keyIdx}/${GROQ_KEY_POOL.length - 1}] — model=${selectedModel}`);
+          console.log(
+            `[AI-Core Hub] Dispatching via Slot [${i}/${GROQ_KEY_POOL.length - 1}] model=${selectedModel}`
+          );
 
-          const provider = createGroq({ apiKey: GROQ_KEY_POOL[keyIdx] });
+          const provider = createGroq({ apiKey: GROQ_KEY_POOL[i] });
           const attempt  = streamText({
             model:           provider(selectedModel),
             system,
@@ -210,7 +218,7 @@ export async function POST(req: Request) {
             maxOutputTokens: 1024,
             temperature:     0.2,
             onError: ({ error }) => {
-              console.error(`[chat] Groq onError (slot=${keyIdx}):`, error);
+              console.error(`[AI-Core] Provider-level error slot=${i}:`, error);
             },
           });
 
@@ -219,48 +227,90 @@ export async function POST(req: Request) {
             controller.enqueue(encoder.encode(chunk));
           }
 
-          console.log(`[chat] ✓ Complete — slot=${keyIdx} model=${selectedModel} tokens≈${tokensSent}`);
+          console.log(`[AI-Core Hub] ✓ Slot [${i}] complete — tokens≈${tokensSent}`);
           controller.close();
-          return; /* ← success: exit the rotation loop entirely */
+          primarySucceeded = true;
+          return;
 
         } catch (err) {
           lastErr      = err;
           const msg    = err instanceof Error ? err.message : String(err);
-          const is429  =
-            /429|rate.?limit|too.?many.?request/i.test(msg) ||
-            (err as { statusCode?: number }).statusCode === 429;
 
-          if (is429 && tokensSent === 0 && keyIdx < GROQ_KEY_POOL.length - 1) {
-            /* Hot-swap: no bytes sent yet, another key available */
+          if (tokensSent === 0 && i < GROQ_KEY_POOL.length - 1) {
+            /* ── Unconditional hot-swap: no bytes sent, next slot available.
+               Error type is NOT checked — AI_RetryError, AI_APICallError,
+               network errors, and 429s all trigger the same retry path.    */
             console.warn(
-              `[chat] Slot [${keyIdx}] rate-limited (429) — hot-swapping to slot [${keyIdx + 1}]`
+              `[AI-Core Hot-Swap] Slot [${i}] failed. ` +
+              `Switching execution flow to next token array slot [${i + 1}]... ` +
+              `Error: ${msg}`
             );
             continue;
           }
 
-          /* Non-retryable: emit fallback if stream is still clean */
-          console.error(
-            `[chat] ✗ Slot [${keyIdx}] fatal — tokens=${tokensSent} msg="${msg}"`
-          );
-          if (tokensSent === 0) {
-            try { controller.enqueue(encoder.encode(classifyGroqError(msg))); } catch { /* ignore */ }
+          if (tokensSent > 0) {
+            /* Partial flush — retrying would corrupt visible output; close cleanly */
+            console.warn(
+              `[AI-Core] Slot [${i}] failed after ${tokensSent} tokens — closing stream as-is.`
+            );
+            try { controller.close(); } catch { /* ignore */ }
+            primarySucceeded = true; // partial content is better than an error message
+            return;
           }
-          try { controller.close(); } catch { /* already closed */ }
-          return;
+
+          /* Last slot failed with zero tokens — fall through to Phase B */
+          console.error(
+            `[AI-Core] All ${GROQ_KEY_POOL.length} primary slots exhausted. ` +
+            `Attempting lightweight fallback model=${FALLBACK_MODEL}...`
+          );
+          break;
         }
       }
 
-      /* All keys exhausted with 429s and no tokens sent */
-      const exhaustedMsg = lastErr instanceof Error ? lastErr.message : "";
-      console.error(`[chat] ✗ All ${GROQ_KEY_POOL.length} key slots rate-limited — ${exhaustedMsg}`);
+      if (primarySucceeded) return;
+
+      /* ── Phase B: Lightweight fallback — llama3-8b-8192 on the last key ──────
+         Uses significantly less TPD quota per request. When the 70B model has
+         hit the daily token ceiling, the 8B model may still have headroom.      */
+      const fallbackKey = GROQ_KEY_POOL[GROQ_KEY_POOL.length - 1];
+      let fbTokens      = 0;
+
       try {
-        controller.enqueue(
-          encoder.encode(
-            "All AI channels are currently rate-limited. Please try again in a few minutes."
-          )
-        );
-      } catch { /* ignore */ }
-      try { controller.close(); } catch { /* already closed */ }
+        console.warn(`[AI-Core Fallback] Attempting model=${FALLBACK_MODEL} on last key slot`);
+
+        const provider  = createGroq({ apiKey: fallbackKey });
+        const fallback  = streamText({
+          model:           provider(FALLBACK_MODEL),
+          system,
+          messages:        safeMessages,
+          maxOutputTokens: 512,
+          temperature:     0.2,
+          onError: ({ error }) => {
+            console.error(`[AI-Core Fallback] onError:`, error);
+          },
+        });
+
+        for await (const chunk of fallback.textStream) {
+          fbTokens++;
+          controller.enqueue(encoder.encode(chunk));
+        }
+
+        console.log(`[AI-Core Fallback] ✓ Complete — model=${FALLBACK_MODEL} tokens≈${fbTokens}`);
+        controller.close();
+
+      } catch (fbErr) {
+        const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
+        console.error(`[AI-Core Fallback] ✗ Failed: ${fbMsg}`);
+
+        /* Absolute last resort — emit a visible plain-text message */
+        const lastMsg = lastErr instanceof Error ? lastErr.message : "";
+        try {
+          controller.enqueue(
+            encoder.encode(classifyGroqError(lastMsg || fbMsg))
+          );
+        } catch { /* ignore */ }
+        try { controller.close(); } catch { /* already closed */ }
+      }
     },
   });
 
