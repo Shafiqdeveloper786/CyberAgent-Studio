@@ -27,9 +27,15 @@ import { sendDailyLimitEmail } from "@/lib/mailer";
 
 const FREE_DAILY_LIMIT = 50;
 
-const groq = createGroq({ apiKey: process.env.GROQ_API_KEY ?? "" });
 const GROQ_MODEL        = "llama-3.3-70b-versatile";
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+
+/* ── Key pool — primary + secondary, undefined entries filtered out.
+   Add more keys as GROQ_API_KEY_SECONDARY_2, _3… if needed.         */
+const GROQ_KEY_POOL: string[] = [
+  process.env.GROQ_API_KEY,
+  process.env.GROQ_API_KEY_SECONDARY,
+].filter((k): k is string => typeof k === "string" && k.trim().length > 0);
 
 /* Returns true if any message contains an image content part */
 function hasImageContent(messages: ModelMessage[]): boolean {
@@ -66,8 +72,8 @@ export async function POST(req: Request) {
   if (!messages?.length) {
     return Response.json({ error: "messages array is required." }, { status: 400 });
   }
-  if (!process.env.GROQ_API_KEY) {
-    return Response.json({ error: "GROQ_API_KEY not configured." }, { status: 503 });
+  if (GROQ_KEY_POOL.length === 0) {
+    return Response.json({ error: "No Groq API keys configured." }, { status: 503 });
   }
 
   /* ── 1. DB connection ── */
@@ -166,92 +172,104 @@ export async function POST(req: Request) {
     );
   }
 
-  /* ── 7. Stream from Groq — switch to vision model if images are present ── */
+  /* ── 7. Stream from Groq with automatic key rotation on 429 ────────────────
+     WHY rotation lives inside ReadableStream.start():
+       streamText() is a lazy initialiser — it configures the request but makes
+       NO network call until its textStream async-iterable is consumed.
+       Any 429 / 401 / timeout therefore throws inside "for await", not at the
+       streamText() call site. Catching it at init-time is useless.
+       By placing the entire init + consumption loop inside ReadableStream.start()
+       we own the full lifecycle and can retry with the next key before any bytes
+       reach the client.
+
+     Rotation policy:
+       • 429 (rate-limit) with tokensSent === 0 → hot-swap to next key, retry
+       • 429 after partial send → cannot retry cleanly; close stream as-is
+       • Non-429 error (auth, timeout, model-not-found) → emit fallback, close
+       • All keys exhausted → emit "all channels rate-limited" message         */
+
   const usingVision   = hasImageContent(safeMessages);
   const selectedModel = usingVision ? GROQ_VISION_MODEL : GROQ_MODEL;
-
-  /* ── 7a. Initialise streamText (synchronous — never touches the network) ──
-     createGroq / streamText itself can throw if the options object is
-     malformed or the SDK detects a missing key before the first token.
-     We catch that layer separately so the error class is visible in logs. */
-  let groqStream: ReturnType<typeof streamText>;
-  try {
-    groqStream = streamText({
-      model:           groq(selectedModel),
-      system,
-      messages:        safeMessages,
-      maxOutputTokens: 1024,
-      temperature:     0.2,
-      /* onError fires for provider-level errors (auth, rate-limit) that
-         surface inside the SDK's internal retry loop. Logging here gives
-         us a server-side trace even when the stream itself is swallowed. */
-      onError: ({ error }) => {
-        console.error(`[chat] Groq provider error (model=${selectedModel}):`, error);
-      },
-    });
-  } catch (initErr) {
-    const msg = initErr instanceof Error ? initErr.message : String(initErr);
-    console.error(`[chat] streamText init failed (model=${selectedModel}):`, msg);
-    return new Response(classifyGroqError(msg), {
-      status:  200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
-  }
-
-  /* ── 7b. Fault-tolerant ReadableStream ─────────────────────────────────────
-     The AI SDK's toTextStreamResponse() defers the actual Groq HTTP call until
-     the stream body is consumed by the HTTP layer — meaning any provider error
-     (rate-limit 429, invalid key 401, model timeout) throws AFTER our try/catch
-     has already returned the Response, so it is invisible to our error handler
-     and the client receives zero bytes with no message.
-
-     By iterating result.textStream manually inside ReadableStream.start() we
-     control the entire consumption loop.  Any mid-stream error lands in our
-     catch block where we can:
-       • log the full error with model name + token count for Vercel triage
-       • emit a user-visible fallback sentence instead of an empty stream
-       • close the controller cleanly so the client ReadableStreamDefaultReader
-         resolves rather than hanging indefinitely                            */
-  const encoder   = new TextEncoder();
-  let tokensSent  = 0;
+  const encoder       = new TextEncoder();
 
   const safeStream = new ReadableStream({
     async start(controller) {
-      try {
-        for await (const chunk of groqStream.textStream) {
-          tokensSent++;
-          controller.enqueue(encoder.encode(chunk));
-        }
-        controller.close();
-        console.log(
-          `[chat] ✓ Stream complete — model=${selectedModel} tokens≈${tokensSent}`
-        );
-      } catch (streamErr) {
-        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
-        console.error(
-          `[chat] ✗ Mid-stream error — model=${selectedModel} tokensSent=${tokensSent} error="${msg}"`
-        );
+      let lastErr: unknown = null;
 
-        /* Only inject fallback text when no tokens have reached the client yet.
-           If partial content was already flushed, appending an error sentence
-           would corrupt the visible message mid-word.                         */
-        if (tokensSent === 0) {
-          try {
-            controller.enqueue(encoder.encode(classifyGroqError(msg)));
-          } catch { /* controller may already be errored — safe to ignore */ }
-        }
+      for (let keyIdx = 0; keyIdx < GROQ_KEY_POOL.length; keyIdx++) {
+        let tokensSent = 0;
 
-        try { controller.close(); } catch { /* already closed */ }
+        try {
+          console.log(`[chat] Key slot [${keyIdx}/${GROQ_KEY_POOL.length - 1}] — model=${selectedModel}`);
+
+          const provider = createGroq({ apiKey: GROQ_KEY_POOL[keyIdx] });
+          const attempt  = streamText({
+            model:           provider(selectedModel),
+            system,
+            messages:        safeMessages,
+            maxOutputTokens: 1024,
+            temperature:     0.2,
+            onError: ({ error }) => {
+              console.error(`[chat] Groq onError (slot=${keyIdx}):`, error);
+            },
+          });
+
+          for await (const chunk of attempt.textStream) {
+            tokensSent++;
+            controller.enqueue(encoder.encode(chunk));
+          }
+
+          console.log(`[chat] ✓ Complete — slot=${keyIdx} model=${selectedModel} tokens≈${tokensSent}`);
+          controller.close();
+          return; /* ← success: exit the rotation loop entirely */
+
+        } catch (err) {
+          lastErr      = err;
+          const msg    = err instanceof Error ? err.message : String(err);
+          const is429  =
+            /429|rate.?limit|too.?many.?request/i.test(msg) ||
+            (err as { statusCode?: number }).statusCode === 429;
+
+          if (is429 && tokensSent === 0 && keyIdx < GROQ_KEY_POOL.length - 1) {
+            /* Hot-swap: no bytes sent yet, another key available */
+            console.warn(
+              `[chat] Slot [${keyIdx}] rate-limited (429) — hot-swapping to slot [${keyIdx + 1}]`
+            );
+            continue;
+          }
+
+          /* Non-retryable: emit fallback if stream is still clean */
+          console.error(
+            `[chat] ✗ Slot [${keyIdx}] fatal — tokens=${tokensSent} msg="${msg}"`
+          );
+          if (tokensSent === 0) {
+            try { controller.enqueue(encoder.encode(classifyGroqError(msg))); } catch { /* ignore */ }
+          }
+          try { controller.close(); } catch { /* already closed */ }
+          return;
+        }
       }
+
+      /* All keys exhausted with 429s and no tokens sent */
+      const exhaustedMsg = lastErr instanceof Error ? lastErr.message : "";
+      console.error(`[chat] ✗ All ${GROQ_KEY_POOL.length} key slots rate-limited — ${exhaustedMsg}`);
+      try {
+        controller.enqueue(
+          encoder.encode(
+            "All AI channels are currently rate-limited. Please try again in a few minutes."
+          )
+        );
+      } catch { /* ignore */ }
+      try { controller.close(); } catch { /* already closed */ }
     },
   });
 
   return new Response(safeStream, {
     status:  200,
     headers: {
-      "Content-Type":    "text/plain; charset=utf-8",
-      "Cache-Control":   "no-cache",
-      "X-Accel-Buffering": "no",   // disables nginx / Vercel edge buffering
+      "Content-Type":      "text/plain; charset=utf-8",
+      "Cache-Control":     "no-cache",
+      "X-Accel-Buffering": "no",
     },
   });
 }

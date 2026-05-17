@@ -207,12 +207,24 @@ export function SavedAgentsList({
             const isToggling  = togglingId === agent._id;
 
             return (
-              <button
+              /* div replaces button here — StatusToggle renders its own <button>
+                 inside this card. Nesting <button> inside <button> is invalid HTML
+                 and triggers React hydration errors. role="button" + tabIndex + onKeyDown
+                 preserves full keyboard accessibility.                                   */
+              <div
                 key={agent._id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelect(agent)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(agent);
+                  }
+                }}
                 className={cn(
                   "relative group text-left rounded-2xl w-full transition-all duration-300",
-                  "focus:outline-none",
+                  "cursor-pointer focus:outline-none select-none",
                   isSelected ? "scale-[1.01]" : "hover:scale-[1.005] hover:-translate-y-0.5"
                 )}
                 style={{
@@ -365,7 +377,7 @@ export function SavedAgentsList({
                     AGENT
                   </div>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
