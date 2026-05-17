@@ -167,33 +167,110 @@ export async function POST(req: Request) {
   }
 
   /* ── 7. Stream from Groq — switch to vision model if images are present ── */
-  const usingVision = hasImageContent(safeMessages);
+  const usingVision   = hasImageContent(safeMessages);
   const selectedModel = usingVision ? GROQ_VISION_MODEL : GROQ_MODEL;
 
+  /* ── 7a. Initialise streamText (synchronous — never touches the network) ──
+     createGroq / streamText itself can throw if the options object is
+     malformed or the SDK detects a missing key before the first token.
+     We catch that layer separately so the error class is visible in logs. */
+  let groqStream: ReturnType<typeof streamText>;
   try {
-    const result = streamText({
+    groqStream = streamText({
       model:           groq(selectedModel),
       system,
       messages:        safeMessages,
       maxOutputTokens: 1024,
-      /* 0.2 — low temperature maximises factual context matching and
-         minimises token hallucination on knowledge-base queries.     */
       temperature:     0.2,
+      /* onError fires for provider-level errors (auth, rate-limit) that
+         surface inside the SDK's internal retry loop. Logging here gives
+         us a server-side trace even when the stream itself is swallowed. */
+      onError: ({ error }) => {
+        console.error(`[chat] Groq provider error (model=${selectedModel}):`, error);
+      },
     });
-
-    return result.toTextStreamResponse();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[chat] Groq streamText failed (model=${selectedModel}):`, msg);
-
-    const friendly =
-      "I'm having trouble connecting to my AI backend right now. " +
-      "Please try again in a moment.";
-    return new Response(friendly, {
-      status: 200,
+  } catch (initErr) {
+    const msg = initErr instanceof Error ? initErr.message : String(initErr);
+    console.error(`[chat] streamText init failed (model=${selectedModel}):`, msg);
+    return new Response(classifyGroqError(msg), {
+      status:  200,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   }
+
+  /* ── 7b. Fault-tolerant ReadableStream ─────────────────────────────────────
+     The AI SDK's toTextStreamResponse() defers the actual Groq HTTP call until
+     the stream body is consumed by the HTTP layer — meaning any provider error
+     (rate-limit 429, invalid key 401, model timeout) throws AFTER our try/catch
+     has already returned the Response, so it is invisible to our error handler
+     and the client receives zero bytes with no message.
+
+     By iterating result.textStream manually inside ReadableStream.start() we
+     control the entire consumption loop.  Any mid-stream error lands in our
+     catch block where we can:
+       • log the full error with model name + token count for Vercel triage
+       • emit a user-visible fallback sentence instead of an empty stream
+       • close the controller cleanly so the client ReadableStreamDefaultReader
+         resolves rather than hanging indefinitely                            */
+  const encoder   = new TextEncoder();
+  let tokensSent  = 0;
+
+  const safeStream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of groqStream.textStream) {
+          tokensSent++;
+          controller.enqueue(encoder.encode(chunk));
+        }
+        controller.close();
+        console.log(
+          `[chat] ✓ Stream complete — model=${selectedModel} tokens≈${tokensSent}`
+        );
+      } catch (streamErr) {
+        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        console.error(
+          `[chat] ✗ Mid-stream error — model=${selectedModel} tokensSent=${tokensSent} error="${msg}"`
+        );
+
+        /* Only inject fallback text when no tokens have reached the client yet.
+           If partial content was already flushed, appending an error sentence
+           would corrupt the visible message mid-word.                         */
+        if (tokensSent === 0) {
+          try {
+            controller.enqueue(encoder.encode(classifyGroqError(msg)));
+          } catch { /* controller may already be errored — safe to ignore */ }
+        }
+
+        try { controller.close(); } catch { /* already closed */ }
+      }
+    },
+  });
+
+  return new Response(safeStream, {
+    status:  200,
+    headers: {
+      "Content-Type":    "text/plain; charset=utf-8",
+      "Cache-Control":   "no-cache",
+      "X-Accel-Buffering": "no",   // disables nginx / Vercel edge buffering
+    },
+  });
+}
+
+/* ── Error classifier — maps provider error messages to user-facing sentences ──
+   Keeps all user-visible copy in one place so it can be localised later.
+   Falls through to a generic sentence for unknown error shapes.              */
+function classifyGroqError(msg: string): string {
+  if (/rate.?limit|429|too.?many.?request/i.test(msg))
+    return "I'm temporarily unavailable due to high demand. Please try again in a moment.";
+  if (/auth|401|403|invalid.?key|api.?key|credential|forbidden/i.test(msg))
+    return "I'm unable to reach my AI provider right now. Please contact support if this continues.";
+  if (/timeout|timed.?out|ETIMEDOUT|ESOCKETTIMEDOUT/i.test(msg))
+    return "My response timed out. Please try again.";
+  if (/model.?not.?found|no.?such.?model|404/i.test(msg))
+    return "The AI model is temporarily unavailable. Please try again shortly.";
+  if (/context.?length|too.?long|max.?token/i.test(msg))
+    return "Your conversation is too long for me to process in one go. Please start a new chat.";
+  return "I encountered an issue generating a response. Please try again in a moment.";
 }
 
 /* ════════════════════════════════════════════════════════════════════════
