@@ -17,17 +17,19 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 interface KBSource {
   _id:       string;
   fileName:  string;
-  fileType:  "pdf" | "txt" | "md" | "url";
+  fileType:  "pdf" | "docx" | "doc" | "txt" | "md" | "url";
   fileSize:  number;
   fileUrl:   string;
   createdAt: string;
 }
 
 const FILE_STYLE: Record<string, { bg: string; border: string; color: string }> = {
-  pdf: { bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.3)",   color: "#f87171" },
-  txt: { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.3)",  color: "#60a5fa" },
-  md:  { bg: "rgba(234,179,8,0.1)",   border: "rgba(234,179,8,0.3)",   color: "#facc15" },
-  url: { bg: "rgba(168,85,247,0.1)",  border: "rgba(168,85,247,0.3)",  color: "#c084fc" },
+  pdf:  { bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.3)",   color: "#f87171" },
+  docx: { bg: "rgba(37,99,235,0.1)",   border: "rgba(37,99,235,0.3)",   color: "#60a5fa" },
+  doc:  { bg: "rgba(37,99,235,0.1)",   border: "rgba(37,99,235,0.3)",   color: "#60a5fa" },
+  txt:  { bg: "rgba(59,130,246,0.1)",  border: "rgba(59,130,246,0.3)",  color: "#93c5fd" },
+  md:   { bg: "rgba(234,179,8,0.1)",   border: "rgba(234,179,8,0.3)",   color: "#facc15" },
+  url:  { bg: "rgba(168,85,247,0.1)",  border: "rgba(168,85,247,0.3)",  color: "#c084fc" },
 };
 
 function fmtSize(b: number): string {
@@ -135,9 +137,10 @@ export function KnowledgeBaseContent() {
     if (file.size > 50 * 1_048_576) { toast.error(`"${file.name}" exceeds 50 MB.`); return; }
 
     const tmpId = `tmp-${Math.random().toString(36).slice(2)}`;
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     const optimistic: KBSource = {
       _id: tmpId, fileName: file.name,
-      fileType: file.name.endsWith(".pdf") ? "pdf" : file.name.endsWith(".md") ? "md" : "txt",
+      fileType: (["pdf","docx","doc","md","txt"].includes(ext) ? ext : "txt") as KBSource["fileType"],
       fileSize: file.size, fileUrl: "", createdAt: new Date().toISOString(),
     };
     setSources((p) => [optimistic, ...p]);
@@ -482,7 +485,9 @@ export function KnowledgeBaseContent() {
               >
                 <input
                   ref={fileInputRef}
-                  type="file" multiple accept=".pdf,.txt,.md"
+                  type="file"
+                  multiple
+                  accept=".pdf,.docx,.doc,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain,text/markdown"
                   className="hidden"
                   onChange={(e) => Array.from(e.target.files ?? []).forEach(uploadFile)}
                 />
@@ -551,7 +556,7 @@ export function KnowledgeBaseContent() {
                           browse
                         </span>
                       </p>
-                      <p className="text-[12px] text-[#334155]">PDF, TXT, Markdown · max 50 MB</p>
+                      <p className="text-[12px] text-[#334155]">Supports PDF, DOCX, or DOC up to 10 MB</p>
                     </>
                   )}
                 </div>
