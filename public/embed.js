@@ -1,5 +1,5 @@
 /**
- * CyberAgent Studio — Embed Script  v13
+ * CyberAgent Studio — Embed Script  v14
  * Drop a single <script> tag anywhere; no other JS required.
  *
  * Usage:
@@ -43,12 +43,29 @@
     return;
   }
 
+  /* ── Iframe guard — bail out immediately if this script is running
+     inside a nested browsing context (i.e. our own widget iframe).
+     Without this, the root Next.js layout injects embed.js into the
+     /widget/[agentId] iframe document, which mounts a second launcher
+     bubble on top of the chat input — the "second persistent circle".
+     window.top is null in sandboxed iframes; treat that as "framed" too. ── */
+  try {
+    if (window.top === null || window !== window.top) {
+      console.warn("[Nexa Widget] Skipping mount — running inside an iframe.");
+      return;
+    }
+  } catch (_) {
+    /* Cross-origin top access throws SecurityError — definitely framed. */
+    console.warn("[Nexa Widget] Skipping mount — cross-origin iframe detected.");
+    return;
+  }
+
   var scriptSrc = me ? (me.getAttribute("src") || "") : "";
   var base      = scriptSrc.replace(/\/embed\.js.*$/, "") ||
                   (typeof window !== "undefined" ? window.location.origin : "");
   var widgetUrl = base + "/widget/" + agentId;
 
-  console.log("[Nexa Widget] v13 — Initializing | agentId:", agentId, "| base:", base);
+  console.log("[Nexa Widget] v14 — Initializing | agentId:", agentId, "| base:", base);
 
   /* ── 2. Mobile detection (evaluated at click-time) ── */
   function isMobile() {

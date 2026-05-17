@@ -54,6 +54,12 @@ export function AgentEmbedScript({
   useEffect(() => {
     setMounted(true);
 
+    /* Never inject inside the widget iframe route — the root layout runs for
+       /widget/[agentId] too, which would mount a second launcher bubble on top
+       of the chat input.  embed.js also guards via window !== window.top, but
+       skipping the script injection entirely avoids the wasted network request. */
+    if (window.location.pathname.startsWith("/widget/")) return;
+
     /* Prevent duplicate injection across HMR reloads or StrictMode
        double-invocations.                                               */
     if (document.getElementById("cyberagent-universal-script")) return;
