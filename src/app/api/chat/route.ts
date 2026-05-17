@@ -162,7 +162,9 @@ export async function POST(req: Request) {
       system,
       messages:        safeMessages,
       maxOutputTokens: 1024,
-      temperature:     0.7,
+      /* 0.2 — low temperature maximises factual context matching and
+         minimises token hallucination on knowledge-base queries.     */
+      temperature:     0.2,
     });
 
     return result.toTextStreamResponse();
@@ -367,8 +369,11 @@ async function buildRagSystemPrompt(
             index:         "knowledge_vector_search",
             path:          "embedding",
             queryVector,
-            numCandidates: 50,
-            limit:         3,
+            /* numCandidates must be ≥ 10× limit for quality ANN recall.
+               Increasing limit from 3→6 surfaces deep document sections
+               (Part 4–7 chunks) that a narrow search window misses.     */
+            numCandidates: 100,
+            limit:         6,
             filter:        { agentId: new mongoose.Types.ObjectId(agentId) },
           },
         },
@@ -384,17 +389,22 @@ async function buildRagSystemPrompt(
 
       console.log(
         `[chat] [3/3] Retrieved ${results.length} chunks. ` +
-        results.map((r) => `score=${r.score.toFixed(3)}`).join(", ")
+        results.map((r) => `[${r.fileName}#${r.chunkIndex}] score=${r.score.toFixed(3)}`).join(" | ")
       );
 
       if (results.length > 0) {
+        /* .join("\n\n") keeps each chunk as a discrete paragraph so the LLM
+           sees clean boundaries and doesn't blend adjacent chunk text.     */
+        const chunksText = results
+          .map(
+            (r, i) =>
+              `[Chunk ${i + 1} | File: ${r.fileName} | Part: ${r.chunkIndex} | Score: ${r.score.toFixed(3)}]\n${r.content.trim()}`
+          )
+          .join("\n\n");
+
         contextBlock =
           "\n\n=== KNOWLEDGE BASE CONTEXT ===\n" +
-          results
-            .map((r, i) =>
-              `[Chunk ${i + 1} | File: ${r.fileName} | Score: ${r.score.toFixed(3)}]\n${r.content}`
-            )
-            .join("\n\n") +
+          chunksText +
           "\n=== END OF CONTEXT ===\n";
       }
     } catch (err) {
@@ -415,11 +425,11 @@ async function buildRagSystemPrompt(
       `You are ${agentName}. ${agentPersona}\n` +
       contextBlock +
       `\nINSTRUCTIONS — follow these strictly:\n` +
-      `1. Answer ONLY using information from the KNOWLEDGE BASE CONTEXT above.\n` +
-      `2. If the answer is clearly present, quote or paraphrase the relevant section directly.\n` +
+      `1. The KNOWLEDGE BASE CONTEXT above may contain multiple numbered chunks from different parts of the same document. Read ALL chunks before answering — the answer may appear in a later chunk (Part 4, Part 5, Part 6, or Part 7).\n` +
+      `2. If the answer is present in ANY chunk, quote or paraphrase that section directly. Do NOT say the information is missing just because it is not in the first chunk.\n` +
       `3. Keep your answer focused — 2 to 5 sentences unless a longer answer is truly needed.\n` +
       `4. Do NOT add disclaimers, padding, or filler phrases.\n` +
-      `5. If the answer is NOT in the context, respond with exactly: "I don't have that information in my knowledge base."\n` +
+      `5. Only if the answer is genuinely absent from ALL chunks, respond with exactly: "I don't have that information in my knowledge base."\n` +
       `6. Never fabricate facts. Never go beyond the provided context.\n`
     );
   }
