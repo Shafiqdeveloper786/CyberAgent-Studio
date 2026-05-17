@@ -1,48 +1,38 @@
 "use client";
 
 /**
- * AgentEmbedScript — Hydration-Safe Next.js Script Wrapper
+ * AgentEmbedScript — Zero-Hydration Script Injector
  *
- * WHY A CLIENT COMPONENT IS REQUIRED:
- * Next.js App Router layouts are Server Components by default.
- * `window` does not exist in the Node.js server runtime, so any
- * direct access to `window?.location?.origin` inside a Server Component
- * throws at SSR time — even with optional chaining — because `window` is
- * not merely undefined; it is entirely absent from the Node.js global scope.
+ * WHY return null + useEffect:
  *
- * HYDRATION-SAFE PATTERN:
- * 1. `NEXT_PUBLIC_APP_URL` (inlined at build time) is used as the
- *    initial state value. The server renders an HTML src attribute that
- *    already points to the correct production URL — no placeholder needed.
- * 2. A `useEffect` runs after hydration and may correct the origin to
- *    `window.location.origin` if the runtime host differs from the build
- *    env var (e.g. custom-domain deployments or local dev without .env.local).
- * 3. Because the initial state matches what the server rendered, React sees
- *    zero hydration mismatch between the SSR HTML and the initial client render.
- *    The `useEffect` update fires only after the first paint — well after
- *    hydration is complete.
+ * The previous version used useState(BUILD_TIME_BASE) to initialise a
+ * <Script src="..."> element, relying on the server and first client
+ * render producing the same src string to avoid hydration mismatches.
+ * This worked when NEXT_PUBLIC_APP_URL was set correctly, but failed in
+ * two ways when it was missing or wrong:
  *
- * USAGE IN ANY LAYOUT (server or client):
+ *   1. React Error #418 — hydration mismatch loop:
+ *      If the env var resolved to "http://localhost:3000" in the build
+ *      environment but the browser was on the Vercel domain, the server
+ *      rendered src="http://localhost:3000/embed.js" while the useEffect
+ *      tried to correct it. React detected a mismatch between the SSR
+ *      HTML and the client VDOM, triggering Error #418 and a re-render
+ *      loop via the Script component's internal postMessage mechanism.
  *
- *   import { AgentEmbedScript } from "@/components/embed/AgentEmbedScript";
+ *   2. GET localhost:3000/embed.js ERR_CONNECTION_REFUSED:
+ *      The browser tried to fetch the localhost URL that was baked into
+ *      the server-rendered HTML before useEffect could correct it.
  *
- *   export default function RootLayout({ children }) {
- *     return (
- *       <html lang="en">
- *         <body>
- *           {children}
- *           <AgentEmbedScript
- *             agentId="your-agent-id"
- *             accentColor="#00f2ff"
- *           />
- *         </body>
- *       </html>
- *     );
- *   }
+ * Solution — decouple completely from the React render tree:
+ *   • Both server render and initial client render return null.
+ *   • Server emits zero bytes for this component → nothing to hydrate.
+ *   • useEffect fires after React hydration is complete and confirmed.
+ *   • Script tag is created via raw DOM APIs, invisible to React's
+ *     reconciler — no hydration surface, no mismatch possible.
+ *   • window.location.origin is read safely (browser-only context).
  */
 
-import Script from "next/script";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface AgentEmbedScriptProps {
   /** MongoDB ObjectId of the agent whose widget to embed */
@@ -51,39 +41,60 @@ interface AgentEmbedScriptProps {
   accentColor?: string;
 }
 
-/* Build-time base URL — safe for SSR.
-   Falls back to the production Vercel URL so generated src attributes
-   are never stamped with localhost in server-rendered HTML.              */
-const BUILD_TIME_BASE =
-  process.env.NEXT_PUBLIC_APP_URL ??
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  process.env.NEXT_PUBLIC_BASE_URL ??
-  "https://cyber-agent-studio.vercel.app";
+const PRODUCTION_FALLBACK = "https://cyber-agent-studio.vercel.app";
 
 export function AgentEmbedScript({
   agentId,
   accentColor = "#00f2ff",
 }: AgentEmbedScriptProps) {
-  /* initialise with the build-time constant so SSR HTML and the first
-     client render are identical — React sees zero hydration delta.      */
-  const [baseUrl, setBaseUrl] = useState(BUILD_TIME_BASE);
+  /* mounted tracks whether we are in the browser — kept for consumers
+     that may inspect the prop, but the render always returns null.      */
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    /* After hydration, correct to the actual runtime origin.
-       This handles custom domains and local dev transparently. */
-    const runtimeOrigin = window.location.origin;
-    if (runtimeOrigin !== baseUrl) {
-      setBaseUrl(runtimeOrigin);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    setMounted(true);
 
-  return (
-    <Script
-      src={`${baseUrl}/embed.js`}
-      strategy="afterInteractive"
-      id="cyberagent-universal-script"
-      data-agent-id={agentId}
-      data-accent-color={accentColor}
-    />
-  );
+    /* Prevent duplicate injection across HMR reloads or StrictMode
+       double-invocations.                                               */
+    if (document.getElementById("cyberagent-universal-script")) return;
+
+    /* Resolve the base URL strictly inside the browser context.
+       Prefers the actual runtime origin so custom-domain deployments
+       work without any env var. Falls back to the production Vercel URL
+       if somehow window.location is unavailable (sandboxed iframes etc) */
+    const runtimeOrigin =
+      typeof window !== "undefined" && window.location.origin
+        ? window.location.origin
+        : PRODUCTION_FALLBACK;
+
+    /* Resolve to production URL if running on localhost in the browser
+       to avoid fetching embed.js from a dev server that isn't serving it.
+       Remove this guard if you want the widget active in local dev too.  */
+    const baseHost = runtimeOrigin.includes("localhost")
+      ? PRODUCTION_FALLBACK
+      : runtimeOrigin;
+
+    /* cache-buster: forces a fresh fetch on every mount so stale cached
+       versions of embed.js don't persist across deployments.             */
+    const script = document.createElement("script");
+    script.id                                      = "cyberagent-universal-script";
+    script.src                                     = `${baseHost}/embed.js?ts=${Date.now()}`;
+    script.defer                                   = true;
+    script.setAttribute("data-agent-id",     agentId);
+    script.setAttribute("data-accent-color", accentColor);
+
+    document.body.appendChild(script);
+    console.log("[AgentEmbedScript] Injected embed.js from:", baseHost);
+
+    return () => {
+      /* Cleanup on unmount — prevents ghost scripts during HMR */
+      const el = document.getElementById("cyberagent-universal-script");
+      if (el) el.remove();
+    };
+  }, [agentId, accentColor]);
+
+  /* Return null on BOTH server and first client render.
+     Server emits nothing → nothing to hydrate → Error #418 impossible. */
+  if (!mounted) return null;
+  return null;
 }

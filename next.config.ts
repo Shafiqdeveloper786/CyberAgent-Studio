@@ -8,6 +8,27 @@ const nextConfig: NextConfig = {
    */
   serverExternalPackages: ["@xenova/transformers", "pdf-parse", "onnxruntime-node"],
 
+  /*
+   * Allow next/image to optimise images from these external domains.
+   * Without an explicit remotePatterns entry the optimizer returns 400.
+   *   lh3.googleusercontent.com — Google OAuth profile photos
+   *   avatars.githubusercontent.com — GitHub OAuth avatars (future-proofing)
+   */
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+        pathname: "/**",
+      },
+    ],
+  },
+
 
   async headers() {
     return [
