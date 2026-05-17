@@ -4,7 +4,7 @@ export interface IKnowledge extends Document {
   agentId:  Types.ObjectId;
   userId:   Types.ObjectId;
   fileName: string;
-  fileType: "pdf" | "txt" | "md" | "url";
+  fileType: "pdf" | "docx" | "doc" | "txt" | "md" | "url";
   fileUrl:  string;
   fileSize: number;
   createdAt: Date;
@@ -33,7 +33,7 @@ const KnowledgeSchema = new Schema<IKnowledge>(
     },
     fileType: {
       type: String,
-      enum: ["pdf", "txt", "md", "url"],
+      enum: ["pdf", "docx", "doc", "txt", "md", "url"],
       default: "txt",
     },
     /* Cloud URL from Uploadthing / Cloudinary — empty until file hosting is wired */

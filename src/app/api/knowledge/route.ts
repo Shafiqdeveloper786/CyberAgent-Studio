@@ -392,10 +392,14 @@ export async function POST(req: Request) {
 
     if (!file) return NextResponse.json({ error: "File missing." }, { status: 400 });
 
-    const ext      = file.name.split(".").pop()?.toLowerCase() ?? "txt";
-    const fileType = ext === "pdf" ? "pdf" : ext === "docx" ? "docx" : ext === "md" ? "md" : "txt";
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "txt";
+    const fileType =
+      ext === "pdf"  ? "pdf"  :
+      ext === "docx" ? "docx" :
+      ext === "doc"  ? "doc"  :
+      ext === "md"   ? "md"   : "txt";
 
-    /* ════ STAGE 1: PDF / DOCX / text extraction ════ */
+    /* ════ STAGE 1: PDF / DOCX / DOC / text extraction ════ */
     console.log("\n[knowledge POST] ── STAGE 1: Text Extraction ──");
     let rawText = "";
 
@@ -412,8 +416,9 @@ export async function POST(req: Request) {
       const parsed = await pdfParse(buffer);
       rawText      = parsed.text ?? "";
       console.log(`[knowledge POST] ✓ PDF parsed: ${parsed.numpages} pages, ${rawText.length} chars`);
-    } else if (fileType === "docx") {
-      console.log("[knowledge POST] Parsing DOCX with mammoth…");
+    } else if (fileType === "docx" || fileType === "doc") {
+      /* mammoth handles both modern .docx (OOXML) and legacy .doc (binary) */
+      console.log(`[knowledge POST] Parsing ${fileType.toUpperCase()} with mammoth…`);
       const buffer = Buffer.from(await file.arrayBuffer());
 
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -423,7 +428,7 @@ export async function POST(req: Request) {
 
       const result = await mammoth.extractRawText({ buffer });
       rawText      = result.value ?? "";
-      console.log(`[knowledge POST] ✓ DOCX parsed: ${rawText.length} chars`);
+      console.log(`[knowledge POST] ✓ ${fileType.toUpperCase()} parsed: ${rawText.length} chars`);
     } else {
       rawText = await file.text();
       console.log(`[knowledge POST] ✓ Text read: ${rawText.length} chars`);
