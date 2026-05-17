@@ -96,6 +96,20 @@ function NoAgentBanner() {
   );
 }
 
+/* ── Allowed upload types — extension + MIME, OR-gated.
+   Browsers sometimes return file.type="" for .docx when the OOXML MIME
+   type is not registered in the OS MIME database.  The OR gate means a
+   file named "report.docx" with an empty type still passes via extension. ── */
+const ALLOWED_EXTENSIONS = ["pdf", "docx", "doc", "txt", "md"] as const;
+const ALLOWED_MIME_TYPES  = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+  "text/plain",
+  "text/markdown",
+  "application/octet-stream", // fallback MIME some OSes emit for .docx
+]);
+
 /* ═══════════════════════════════════════════════════
    Main Component
 ═══════════════════════════════════════════════════ */
@@ -134,13 +148,28 @@ export function KnowledgeBaseContent() {
   /* ── Upload file ── */
   const uploadFile = useCallback(async (file: File) => {
     if (!activeAgentId) { toast.error("Select an agent first."); return; }
-    if (file.size > 50 * 1_048_576) { toast.error(`"${file.name}" exceeds 50 MB.`); return; }
+
+    /* ── Extension + MIME validation (OR-gated)
+       Browsers sometimes return file.type="" for .docx files when the
+       OOXML MIME type is not registered in the OS MIME database.
+       Using OR means the upload proceeds if EITHER check passes —
+       a file named "report.docx" with type="" will clear the ext gate. ── */
+    const fileExtension = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const extAllowed  = ALLOWED_EXTENSIONS.includes(fileExtension as typeof ALLOWED_EXTENSIONS[number]);
+    const mimeAllowed = file.type === "" || ALLOWED_MIME_TYPES.has(file.type);
+
+    if (!extAllowed && !mimeAllowed) {
+      console.error("[KnowledgeBase] Rejected file — unsupported type:", file.type, "ext:", fileExtension);
+      toast.error(`Unsupported format ".${fileExtension || file.type}". Please upload PDF, DOCX, DOC, TXT, or MD files.`);
+      return;
+    }
+
+    if (file.size > 10 * 1_048_576) { toast.error(`"${file.name}" exceeds 10 MB.`); return; }
 
     const tmpId = `tmp-${Math.random().toString(36).slice(2)}`;
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     const optimistic: KBSource = {
       _id: tmpId, fileName: file.name,
-      fileType: (["pdf","docx","doc","md","txt"].includes(ext) ? ext : "txt") as KBSource["fileType"],
+      fileType: (ALLOWED_EXTENSIONS.includes(fileExtension as typeof ALLOWED_EXTENSIONS[number]) ? fileExtension : "txt") as KBSource["fileType"],
       fileSize: file.size, fileUrl: "", createdAt: new Date().toISOString(),
     };
     setSources((p) => [optimistic, ...p]);
