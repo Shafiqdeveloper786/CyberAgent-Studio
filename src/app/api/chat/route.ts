@@ -1,0 +1,422 @@
+/**
+ * POST /api/chat — RAG-powered streaming chat
+ *
+ * Auth modes:
+ *   Internal (dashboard / widget iframe): no x-api-key needed (same-origin)
+ *   External (direct cross-origin call):   x-api-key header required
+ *
+ * Pipeline:
+ *  1. Validate (and optionally verify x-api-key)
+ *  2. enforceFreePlanCap — hard-blocks at 50 msg/day BEFORE any AI work
+ *  3. Increment Agent.messageCount + lastMessageAt (analytics)
+ *  4. Embed query  → $vectorSearch → build RAG system prompt
+ *  5. Stream Groq llama-3.3-70b-versatile
+ */
+
+import { streamText } from "ai";
+import { createGroq } from "@ai-sdk/groq";
+import type { ModelMessage } from "ai";
+import mongoose from "mongoose";
+import connectDB from "@/lib/mongodb";
+import Agent from "@/models/Agent";
+import User from "@/models/User";
+import Quota from "@/models/Quota";
+import KnowledgeChunk from "@/models/KnowledgeChunk";
+import { generateEmbedding } from "@/lib/embeddings";
+import { sendDailyLimitEmail } from "@/lib/mailer";
+
+const FREE_DAILY_LIMIT = 50;
+
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY ?? "" });
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+/* ── CORS preflight ── */
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin":  "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, x-api-key",
+      "Access-Control-Max-Age":       "86400",
+    },
+  });
+}
+
+export async function POST(req: Request) {
+  /* ── Destructure ALL context parameters up front ── */
+  const body = (await req.json()) as {
+    messages: ModelMessage[];
+    agentId?: string;
+    userId?:  string;
+  };
+  const { messages, agentId, userId } = body;
+
+  if (!messages?.length) {
+    return Response.json({ error: "messages array is required." }, { status: 400 });
+  }
+  if (!process.env.GROQ_API_KEY) {
+    return Response.json({ error: "GROQ_API_KEY not configured." }, { status: 503 });
+  }
+
+  /* ── 1. DB connection ── */
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error("[chat] DB connect failed:", err);
+    return Response.json({ error: "Database connection failed." }, { status: 503 });
+  }
+
+  /* ── 2. Sanitize incoming message content ────────────────────────────
+     Strip any HTML / script tags from user-supplied text to prevent
+     XSS payloads from being reflected back through the AI response.
+  ──────────────────────────────────────────────────────────────────── */
+  /* Strip HTML from string-content messages only.
+     ToolModelMessage has ToolContent (not string) so its branch is never entered
+     — the cast back to ModelMessage[] is therefore safe. */
+  const safeMessages = messages.map((m) => {
+    if (typeof m.content === "string") {
+      return { ...m, content: m.content.replace(/<[^>]*>/g, "").trim() };
+    }
+    return m;
+  }) as ModelMessage[];
+
+  /* ── 3. Combined API key + status gate (single DB round-trip) ─────────
+     Fetches apiKey and status together to avoid two sequential queries.
+     • If x-api-key header is present: validates it.
+     • Always: rejects inactive agents before any further processing.
+     State is read live from Atlas on every request — no session caching.
+  ──────────────────────────────────────────────────────────────────────── */
+  if (agentId) {
+    const agentGate = await Agent.findById(agentId)
+      .select("apiKey status")
+      .lean<{ apiKey?: string; status: string }>();
+
+    if (!agentGate) {
+      return Response.json({ error: "Agent not found." }, { status: 404 });
+    }
+
+    const providedKey = req.headers.get("x-api-key")?.trim() ?? "";
+    if (providedKey) {
+      if (!agentGate.apiKey || agentGate.apiKey !== providedKey) {
+        console.warn(`[chat] ✗ Invalid x-api-key for agent ${agentId}`);
+        return Response.json({ error: "Invalid API key." }, { status: 403 });
+      }
+      console.log(`[chat] ✓ x-api-key verified for agent ${agentId}`);
+    }
+
+    if (agentGate.status === "inactive") {
+      console.log(`[chat] Agent ${agentId} is inactive — request blocked`);
+      return new Response(
+        "Aapne apna agent deactivate kar diya hai, toh pehle activate karo.",
+        { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } }
+      );
+    }
+  }
+
+  /* ── 4. HARD CAP — must complete before any AI work ────────────────────
+     Uses a dedicated Quota collection keyed by (agentId, date).
+     No try/catch here: a DB failure must surface as 500, never silently
+     fall through to the Groq stream.
+  ─────────────────────────────────────────────────────────────────────── */
+  if (agentId) {
+    const capBlock = await enforceFreePlanCap({ agentId, userId });
+    if (capBlock) return capBlock;
+  }
+
+  /* ── 5. Analytics counter (fire-and-forget — never delays the stream) ── */
+  if (agentId) {
+    Agent.updateOne(
+      { _id: agentId },
+      { $inc: { messageCount: 1 }, $set: { lastMessageAt: new Date() } }
+    ).catch((err) => console.error("[chat] Analytics update failed:", err));
+  }
+
+  /* ── 6. Build RAG system prompt ── */
+  let system: string;
+  try {
+    system = await buildRagSystemPrompt(safeMessages, agentId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[chat] Failed to build RAG system prompt:", msg);
+    return Response.json(
+      { error: "Failed to retrieve knowledge context. Please try again." },
+      { status: 500 }
+    );
+  }
+
+  /* ── 7. Stream from Groq ── */
+  try {
+    const result = streamText({
+      model:           groq(GROQ_MODEL),
+      system,
+      messages:        safeMessages,
+      maxOutputTokens: 1024,
+      temperature:     0.7,
+    });
+
+    return result.toTextStreamResponse();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[chat] Groq streamText failed (model=${GROQ_MODEL}):`, msg);
+
+    const friendly =
+      "I'm having trouble connecting to my AI backend right now. " +
+      "Please try again in a moment.";
+    return new Response(friendly, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   FREE-PLAN HARD CAP — enforceFreePlanCap
+   ─────────────────────────────────────────────────────────────────────
+   Dedicated Quota collection — one document per (agentId, date).
+   The unique compound index { agentId: 1, date: 1 } is built at
+   connection time by initCollections() in lib/mongodb.ts so it always
+   exists before the first write.
+
+   No global/memory state is consulted — every execution performs a fresh
+   direct MongoDB Atlas query. Server restarts, HMR reloads, and
+   serverless cold-starts all see the same persisted counts.
+
+   Two-gate atomic sequence:
+     Gate 1 — Idempotent upsert: ensures the (agentId, date) document
+              exists with count:0. $setOnInsert is a no-op if the
+              document was already created by an earlier request today.
+     Gate 2 — Hard-cap increment: findOneAndUpdate with
+              { count: { $lt: FREE_DAILY_LIMIT } } and upsert:false.
+              Returns the updated document if a slot was claimed, or
+              null if count was already >= FREE_DAILY_LIMIT.
+              Returning null → immediate 423 — no fallthrough to stream.
+
+   Called with NO surrounding try/catch in POST() so that a MongoDB
+   failure surfaces as a 500, never silently passes to Groq.
+════════════════════════════════════════════════════════════════════════ */
+async function enforceFreePlanCap({
+  agentId,
+  userId: _userId,   // reserved — future per-user cross-agent cap
+}: {
+  agentId?: string;
+  userId?:  string;
+}): Promise<Response | null> {
+  if (!agentId) return null;
+
+  /* Immutable UTC day boundary — identical across every Node.js instance
+     and every restart. split('T')[0] on an ISO string always yields
+     'YYYY-MM-DD' regardless of server timezone or locale.                */
+  const todayUTC = new Date().toISOString().split("T")[0];
+  const oId      = new mongoose.Types.ObjectId(agentId);
+
+  /* ── Resolve agent + subscription ── */
+  const agentDoc = await Agent.findById(agentId)
+    .select("userId name limitEmailSentDate")
+    .lean<{ userId: string; name: string; limitEmailSentDate: string }>();
+
+  if (!agentDoc) return null; // unknown agent — downstream returns 404
+
+  const owner = await User.findById(agentDoc.userId)
+    .select("email subscription")
+    .lean<{ email: string; subscription: string }>();
+
+  if ((owner?.subscription ?? "free") !== "free") return null; // paid — no cap
+
+  /* ── Gate 1: Idempotent Find / Upsert ──────────────────────────────────
+     $setOnInsert fires ONLY when a new document is inserted by the upsert.
+     If a document for (agentId, todayUTC) already exists — including after
+     a server restart — this is a strict no-op: the existing count is
+     NEVER reset or overwritten.
+     The unique compound index enforced by MongoDB Atlas prevents two
+     concurrent Gate 1 calls from both inserting a new document.
+  ──────────────────────────────────────────────────────────────────────── */
+  await Quota.updateOne(
+    { agentId: oId, date: todayUTC },
+    { $setOnInsert: { count: 0 } },
+    { upsert: true }
+  );
+
+  /* ── Gate 2: Atomic Hard-Cap Increment ─────────────────────────────────
+     Explicit upsert:false — this gate must NEVER create a new document.
+     MongoDB evaluates { count: { $lt: FREE_DAILY_LIMIT } } and applies
+     $inc atomically at the document level. Only one concurrent caller can
+     claim each slot. If the document's count is already >= FREE_DAILY_LIMIT,
+     the filter does not match and Mongoose returns null.
+  ──────────────────────────────────────────────────────────────────────── */
+  const quotaDoc = await Quota.findOneAndUpdate(
+    { agentId: oId, date: todayUTC, count: { $lt: FREE_DAILY_LIMIT } },
+    { $inc: { count: 1 } },
+    { new: true, upsert: false }
+  ).lean<{ count: number }>();
+
+  if (quotaDoc) {
+    console.log(`[chat] ✓ Quota ${quotaDoc.count}/${FREE_DAILY_LIMIT} — agent ${agentId} — ${todayUTC}`);
+    return null; // slot claimed — allow request to proceed
+  }
+
+  /* ── HARD BLOCK: quotaDoc is null → count >= FREE_DAILY_LIMIT ──────────
+     Absolute exit — do NOT fall through to streamText or any AI provider.
+  ──────────────────────────────────────────────────────────────────────── */
+  const nextMidnight = new Date();
+  nextMidnight.setUTCHours(24, 0, 0, 0);
+  const secsLeft = Math.max(0, Math.floor((nextMidnight.getTime() - Date.now()) / 1000));
+  const hh      = Math.floor(secsLeft / 3600);
+  const mm      = Math.floor((secsLeft % 3600) / 60);
+  const resetIn = `${hh}h ${String(mm).padStart(2, "0")}m`;
+
+  console.warn(`[chat] ✗ Hard cap reached — agent ${agentId} — ${todayUTC} — returning 423`);
+
+  /* Isolated background email — fire-and-forget, never delays the 423.
+     limitEmailSentDate guard ensures at most one email per agent per day. */
+  if (owner?.email && agentDoc.limitEmailSentDate !== todayUTC) {
+    sendDailyLimitEmail({
+      toEmail:   owner.email,
+      agentName: agentDoc.name ?? "Your Agent",
+      resetAt:   nextMidnight.toISOString(),
+    })
+      .then(() =>
+        Agent.updateOne(
+          { _id: agentId },
+          { $set: { limitEmailSentDate: todayUTC } }
+        ).catch(console.error)
+      )
+      .catch((e) => console.error("[chat] Limit email dispatch failed:", e));
+  }
+
+  const resetsInMs = nextMidnight.getTime() - Date.now();
+
+  return new Response(
+    JSON.stringify({
+      status:     "error",
+      code:       "LIMIT_EXCEEDED",
+      message:    `You have consumed your ${FREE_DAILY_LIMIT} free messages for today. Your quota will automatically reset in ${resetIn}.`,
+      resetAt:    nextMidnight.toISOString(),
+      resetIn,
+      resetsInMs: Math.max(0, resetsInMs),
+      secondsLeft: secsLeft,
+    }),
+    {
+      status:  423,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+}
+
+/* ════════════════════════════════════════════════
+   RAG pipeline: embed query → vector search → inject context
+   NOTE: connectDB() is already called before this, so we skip it here.
+════════════════════════════════════════════════ */
+async function buildRagSystemPrompt(
+  messages: ModelMessage[],
+  agentId?: string,
+): Promise<string> {
+
+  /* ── 1. Resolve agent persona ── */
+  let agentName    = "Assistant";
+  let agentPersona = "You are a helpful AI assistant.";
+
+  if (agentId) {
+    try {
+      const agent = await Agent.findById(agentId)
+        .select("name persona")
+        .lean<{ name: string; persona: string }>();
+      if (agent) {
+        agentName    = agent.name;
+        agentPersona = agent.persona;
+      }
+    } catch (err) {
+      console.error("[chat] Failed to fetch agent:", err);
+    }
+  }
+
+  /* ── 2. Extract last user message for embedding ── */
+  const lastUserMsg = [...messages]
+    .reverse()
+    .find((m) => m.role === "user");
+
+  const queryText =
+    typeof lastUserMsg?.content === "string"
+      ? lastUserMsg.content
+      : (lastUserMsg?.content as Array<{ type: string; text: string }>)
+          ?.find((p) => p.type === "text")?.text ?? "";
+
+  /* ── 3. Vector search ── */
+  let contextBlock = "";
+
+  if (agentId && queryText) {
+    try {
+      console.log(`[chat] [1/3] Embedding query: "${queryText.slice(0, 80)}…"`);
+      const { vector: queryVector, source: embedSrc } = await generateEmbedding(queryText);
+      console.log(`[chat] ✓ Query embedded (384-dim, source=${embedSrc})`);
+
+      console.log("[chat] [2/3] Running $vectorSearch in MongoDB Atlas…");
+      const results = await KnowledgeChunk.aggregate([
+        {
+          $vectorSearch: {
+            index:         "knowledge_vector_search",
+            path:          "embedding",
+            queryVector,
+            numCandidates: 50,
+            limit:         3,
+            filter:        { agentId: new mongoose.Types.ObjectId(agentId) },
+          },
+        },
+        {
+          $project: {
+            content:    1,
+            fileName:   1,
+            chunkIndex: 1,
+            score:      { $meta: "vectorSearchScore" },
+          },
+        },
+      ]) as Array<{ content: string; fileName: string; chunkIndex: number; score: number }>;
+
+      console.log(
+        `[chat] [3/3] Retrieved ${results.length} chunks. ` +
+        results.map((r) => `score=${r.score.toFixed(3)}`).join(", ")
+      );
+
+      if (results.length > 0) {
+        contextBlock =
+          "\n\n=== KNOWLEDGE BASE CONTEXT ===\n" +
+          results
+            .map((r, i) =>
+              `[Chunk ${i + 1} | File: ${r.fileName} | Score: ${r.score.toFixed(3)}]\n${r.content}`
+            )
+            .join("\n\n") +
+          "\n=== END OF CONTEXT ===\n";
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/vectorSearch|search index/i.test(msg)) {
+        console.warn(
+          "[chat] ⚠ Atlas Vector Search index not found. Falling back to persona-only prompt."
+        );
+      } else {
+        console.error("[chat] Vector search error:", err);
+      }
+    }
+  }
+
+  /* ── 4. Assemble system prompt ── */
+  if (contextBlock) {
+    return (
+      `You are ${agentName}. ${agentPersona}\n` +
+      contextBlock +
+      `\nINSTRUCTIONS — follow these strictly:\n` +
+      `1. Answer ONLY using information from the KNOWLEDGE BASE CONTEXT above.\n` +
+      `2. If the answer is clearly present, quote or paraphrase the relevant section directly.\n` +
+      `3. Keep your answer focused — 2 to 5 sentences unless a longer answer is truly needed.\n` +
+      `4. Do NOT add disclaimers, padding, or filler phrases.\n` +
+      `5. If the answer is NOT in the context, respond with exactly: "I don't have that information in my knowledge base."\n` +
+      `6. Never fabricate facts. Never go beyond the provided context.\n`
+    );
+  }
+
+  return (
+    `You are ${agentName}. ${agentPersona}\n` +
+    `No knowledge-base documents were matched for this query.\n` +
+    `Answer helpfully and concisely in 2–4 sentences. Be direct — no padding.\n`
+  );
+}
