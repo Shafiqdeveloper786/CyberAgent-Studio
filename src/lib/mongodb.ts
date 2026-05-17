@@ -50,48 +50,89 @@ if (!RAW_URI.startsWith("mongodb://") && !RAW_URI.startsWith("mongodb+srv://")) 
 }
 
 /* ════════════════════════════════════════════════════
-   2.  URI sanitiser — parses with WHATWG URL, re-encodes
-       credentials, and hands back a clean string.
-       Falls back to the raw URI if the parser chokes
-       (e.g. a truly malformed string).
+   2.  URI sanitiser — regex-based credential encoder.
+
+   WHY NOT new URL()?
+   WHATWG URL spec (RFC 3986 §3.2.2) only accepts a single
+   host per authority component.  MongoDB direct-replica URIs
+   use comma-separated hosts:
+     mongodb://user:pass@host1:27017,host2:27017,host3:27017/db
+   This is MongoDB-specific syntax that every standards-compliant
+   URL parser — including Node's built-in new URL() and the
+   deprecated url.parse() — rejects with "Invalid URL".
+
+   Using new URL() here is therefore the root cause of both
+   production warnings:
+     1. "⚠ new URL() could not parse the URI"          (our own catch)
+     2. "[DEP0169] url.parse() behavior not standardized" (Node.js 22+)
+        — the MongoDB driver falls back to url.parse() when it receives
+          a URI whose credentials couldn't be pre-sanitized.
+
+   The regex below handles every topology Mongoose supports:
+     mongodb+srv://user:pass@cluster.mongodb.net/db?opts   (SRV)
+     mongodb://user:pass@host1,host2,host3/db?opts         (direct replica)
+     mongodb://user:pass@host:port/db?opts                 (single-host)
+     mongodb://host/db                                     (no credentials)
 ════════════════════════════════════════════════════ */
+
+/** Regex that captures: (protocol)(user):(pass)@(everything-else) */
+const CRED_RE = /^(mongodb(?:\+srv)?:\/\/)([^:@/]+):([^@]+)@(.+)$/;
+
 function sanitizeUri(raw: string): string {
-  try {
-    const url      = new URL(raw);
-    /* decodeURIComponent first so we don't double-encode an already-encoded value */
-    url.username   = encodeURIComponent(decodeURIComponent(url.username));
-    url.password   = encodeURIComponent(decodeURIComponent(url.password));
-    const clean    = url.toString();
-    if (clean !== raw) {
-      console.log("[mongodb] URI credentials were re-encoded by sanitiser.");
-    } else {
-      console.log("[mongodb] ✓ URI parsed cleanly — no re-encoding needed.");
-    }
-    return clean;
-  } catch (e) {
-    console.warn(
-      "[mongodb] ⚠ new URL() could not parse the URI — using raw string.\n" +
-      "  Parser error:", e instanceof Error ? e.message : e
-    );
+  const match = raw.match(CRED_RE);
+
+  if (!match) {
+    /* No credentials present — URI is either credential-free or malformed.
+       Pass through unchanged; Mongoose will surface any parse error itself. */
+    console.log("[mongodb] ✓ URI has no credentials to sanitize — passing through.");
     return raw;
   }
+
+  const [, proto, rawUser, rawPass, rest] = match;
+
+  /* Decode first to prevent double-encoding an already-percent-encoded value,
+     then re-encode so every special character is safely escaped.              */
+  let user: string;
+  let pass: string;
+
+  try { user = encodeURIComponent(decodeURIComponent(rawUser)); }
+  catch { user = encodeURIComponent(rawUser); }
+
+  try { pass = encodeURIComponent(decodeURIComponent(rawPass)); }
+  catch { pass = encodeURIComponent(rawPass); }
+
+  if (user === rawUser && pass === rawPass) {
+    console.log("[mongodb] ✓ URI credentials already URL-safe — no re-encoding needed.");
+    return raw;
+  }
+
+  console.log("[mongodb] URI credentials re-encoded by sanitiser.");
+  return `${proto}${user}:${pass}@${rest}`;
 }
 
 const MONGODB_URI = sanitizeUri(RAW_URI);
 
 /* ════════════════════════════════════════════════════
-   3.  Password special-character check (belt & suspenders)
+   3.  Post-sanitize verification — check the encoded password
+       contains no bare special characters that would confuse
+       the MongoDB driver's own lightweight parser.
 ════════════════════════════════════════════════════ */
-(function warnOnUnsafePassword(uri: string) {
-  const m = uri.match(/\/\/([^:]+):([^@]+)@/);
+(function verifyEncodedPassword(uri: string) {
+  const m = uri.match(CRED_RE);
   if (!m) return;
-  const rawPass     = m[2];
-  const needsEncode = /[@#:/=?&+ ]/.test(rawPass);
-  if (needsEncode) {
+  /* m[3] is the password segment AFTER sanitizeUri() has run.
+     At this point it should be fully percent-encoded, so the only
+     characters that should appear un-escaped are alphanumerics and
+     the handful of unreserved chars that encodeURIComponent leaves
+     alone: - _ . ! ~ * ' ( )                                         */
+  const encodedPass  = m[3];
+  const stillRaw     = /[@#:/=?&+ ]/.test(encodedPass);
+  if (stillRaw) {
     console.warn(
-      "[mongodb] ⚠ PASSWORD still contains special characters after sanitisation.\n" +
-      `  Encoded form: ${encodeURIComponent(rawPass)}\n` +
-      "  Update MONGODB_URI in .env.local with the encoded password."
+      "[mongodb] ⚠ PASSWORD still contains bare special characters after encoding.\n" +
+      `  Problematic value: ${encodedPass}\n` +
+      "  Re-generate MONGODB_URI in Atlas with a password that uses only " +
+      "alphanumeric characters to avoid driver parse ambiguity."
     );
   } else {
     console.log("[mongodb] ✓ Password is URL-safe.");

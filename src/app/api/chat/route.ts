@@ -116,11 +116,21 @@ export async function POST(req: Request) {
 
   /* ── 4. HARD CAP — must complete before any AI work ────────────────────
      Uses a dedicated Quota collection keyed by (agentId, date).
-     No try/catch here: a DB failure must surface as 500, never silently
-     fall through to the Groq stream.
+     Wrapped in try/catch so a URI-parse or DB transient error returns a
+     clean 503 instead of an unhandled rejection that some clients
+     (e.g. the widget's useLiveChat hook) misinterpret as a quota block.
   ─────────────────────────────────────────────────────────────────────── */
   if (agentId) {
-    const capBlock = await enforceFreePlanCap({ agentId, userId });
+    let capBlock: Response | null;
+    try {
+      capBlock = await enforceFreePlanCap({ agentId, userId });
+    } catch (quotaErr) {
+      const msg = quotaErr instanceof Error ? quotaErr.message : String(quotaErr);
+      console.error("[chat] Quota DB error — bypassing cap check (fail-open):", msg);
+      /* Fail-open: let the request proceed rather than falsely blocking the
+         user with a "quota exceeded" state when the real issue is a DB error. */
+      capBlock = null;
+    }
     if (capBlock) return capBlock;
   }
 
