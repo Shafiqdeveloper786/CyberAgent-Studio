@@ -380,14 +380,164 @@ export async function POST(req: Request) {
     }
     console.log("[knowledge POST] ✓ Agent OK");
 
-    /* ════ URL source — metadata only ════ */
+    /* ════ URL source — fetch → parse → chunk → embed → store ════ */
     if (urlSrc) {
-      const doc = await Knowledge.create({
+      /* ── Validate URL format ── */
+      let targetUrl: string;
+      try {
+        targetUrl = new URL(urlSrc).href;
+      } catch {
+        return NextResponse.json({ error: "Invalid URL format." }, { status: 400 });
+      }
+
+      console.log("\n[knowledge POST] ── URL SCRAPE PIPELINE ──");
+      console.log("[knowledge POST] Target:", targetUrl);
+
+      /* ── STAGE 1: Fetch with full browser-simulation headers ──────────────
+         Sites like Wikipedia, Notion, and Cloudflare-protected pages inspect
+         the User-Agent and Accept headers. Without them the server either
+         returns 403, a bot-check page, or an empty body.
+      ────────────────────────────────────────────────────────────────────── */
+      let html: string;
+      try {
+        const res = await fetch(targetUrl, {
+          method:  "GET",
+          headers: {
+            "User-Agent":                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language":           "en-US,en;q=0.9",
+            "Accept-Encoding":           "gzip, deflate, br",
+            "Cache-Control":             "no-cache",
+            "Pragma":                    "no-cache",
+            "DNT":                       "1",
+            "Connection":                "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest":            "document",
+            "Sec-Fetch-Mode":            "navigate",
+            "Sec-Fetch-Site":            "none",
+            "Sec-Fetch-User":            "?1",
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        }
+        html = await res.text();
+        console.log(`[knowledge POST] ✓ Fetched ${html.length} chars`);
+      } catch (fetchErr) {
+        const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        console.error("[knowledge POST] ✗ Fetch failed:", msg);
+        return NextResponse.json(
+          { error: `Could not reach URL: ${msg}` },
+          { status: 422 }
+        );
+      }
+
+      /* ── STAGE 2: Parse HTML with cheerio + extract meaningful text ───────
+         Removal order matters: kill scripts/styles first, then structural
+         chrome (nav/header/footer/aside), then pull content from the most
+         specific semantic containers before falling back to <body>.
+      ────────────────────────────────────────────────────────────────────── */
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const cheerio = require("cheerio") as typeof import("cheerio");
+      const $       = cheerio.load(html);
+
+      /* Purge noise elements so their text never leaks into the corpus */
+      $(
+        "script, style, noscript, iframe, svg, canvas," +
+        "nav, header, footer, aside," +
+        "[role='navigation'],[role='banner'],[role='complementary'],[role='search']," +
+        ".nav,.navbar,.sidebar,.footer,.header,.menu,.breadcrumb," +
+        ".ad,.ads,.advertisement,.cookie,.cookie-banner,.popup"
+      ).remove();
+
+      /* Try progressively wider content selectors */
+      const CONTENT_SELECTORS = [
+        "article", "main", "[role='main']",
+        ".content", ".post-content", ".entry-content", ".article-body",
+        "#content", "#main", "#article",
+      ];
+
+      let rawText = "";
+      for (const sel of CONTENT_SELECTORS) {
+        const candidate = $(sel).text();
+        if (candidate.trim().length > 300) { rawText = candidate; break; }
+      }
+
+      /* Fallback to full body text if no semantic container yielded content */
+      if (!rawText.trim()) rawText = $("body").text();
+
+      /* Normalise whitespace: collapse spaces and limit consecutive newlines */
+      rawText = rawText
+        .replace(/\t/g, " ")
+        .replace(/[ ]{2,}/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
+      console.log(`[knowledge POST] ✓ Extracted ${rawText.length} chars of clean text`);
+      console.log("[knowledge POST] Preview:", JSON.stringify(rawText.slice(0, 150)));
+
+      /* ── No extractable text (JS-rendered SPA, bot wall, etc.) ── */
+      if (!rawText.trim()) {
+        const doc = await Knowledge.create({
+          agentId, userId: session.user.id,
+          fileName: urlSrc, fileType: "url", fileUrl: urlSrc, fileSize: 0,
+        });
+        console.warn("[knowledge POST] ⚠ No text extracted — metadata saved only.");
+        return NextResponse.json(
+          { doc, warning: "No text content found at this URL. The page may require JavaScript to render." },
+          { status: 201 }
+        );
+      }
+
+      /* ── STAGE 3: Chunk ── */
+      const chunks = chunkText(rawText, 500, 50);
+      console.log(`[knowledge POST] ✓ ${chunks.length} chunks ready`);
+
+      /* ── STAGE 4: Save metadata doc ── */
+      const metadataDoc = await Knowledge.create({
         agentId, userId: session.user.id,
-        fileName: urlSrc, fileType: "url", fileUrl: urlSrc, fileSize: 0,
-      });
-      console.log("[knowledge POST] ✓ URL saved:", urlSrc);
-      return NextResponse.json({ doc }, { status: 201 });
+        fileName: urlSrc,
+        fileType: "url",
+        fileUrl:  urlSrc,
+        fileSize: Buffer.byteLength(rawText, "utf8"),
+      }) as { _id: mongoose.Types.ObjectId };
+      console.log("[knowledge POST] ✓ Metadata doc:", metadataDoc._id.toString());
+
+      /* ── STAGE 5: Embed + store chunks ── */
+      console.log(`[knowledge POST] ── Embedding ${chunks.length} URL chunks ──`);
+      const urlChunkDocs: object[] = [];
+
+      for (let i = 0; i < chunks.length; i++) {
+        const { vector } = await generateEmbedding(chunks[i], `[${i + 1}/${chunks.length}]`);
+        urlChunkDocs.push({
+          knowledgeId: metadataDoc._id,
+          agentId,
+          userId:      session.user.id,
+          fileName:    urlSrc,
+          content:     chunks[i],
+          embedding:   vector,
+          chunkIndex:  i,
+        });
+        console.log(`[knowledge POST] [${i + 1}/${chunks.length}] ✓ ${vector.length}-dim`);
+      }
+
+      const inserted = await KnowledgeChunk.insertMany(urlChunkDocs, { ordered: false });
+      console.log(`[knowledge POST] ✓ ${inserted.length} URL chunks saved to MongoDB`);
+
+      console.log("\n[knowledge POST] ── URL PIPELINE COMPLETE ──");
+      console.table([{
+        "URL":          urlSrc.slice(0, 60),
+        "Chars":        rawText.length,
+        "Chunks Saved": inserted.length,
+        "DB":           mongoose.connection.name,
+        "Status":       "✓ SUCCESS",
+      }]);
+
+      return NextResponse.json(
+        { doc: metadataDoc, chunksCreated: inserted.length },
+        { status: 201 }
+      );
     }
 
     if (!file) return NextResponse.json({ error: "File missing." }, { status: 400 });

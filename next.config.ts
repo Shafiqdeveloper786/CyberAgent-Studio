@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
    * directly — @xenova/transformers downloads ONNX models at runtime and
    * pdf-parse reads the PDF binary; both break under webpack transforms.
    */
-  serverExternalPackages: ["@xenova/transformers", "pdf-parse", "onnxruntime-node"],
+  serverExternalPackages: ["@xenova/transformers", "pdf-parse", "onnxruntime-node", "cheerio", "mammoth"],
 
   /*
    * Allow next/image to optimise images from these external domains.
