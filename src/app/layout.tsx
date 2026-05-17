@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
+import { AgentEmbedScript } from "@/components/embed/AgentEmbedScript";
 
 export const metadata: Metadata = {
   title: "CyberAgent Studio",
@@ -24,6 +25,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="h-full bg-[#050505] text-[#e2e8f0] antialiased">
         <Providers>{children}</Providers>
+
+        {/*
+         * NexCore AI live widget — injected globally across all routes.
+         *
+         * AgentEmbedScript is a "use client" component that:
+         *  1. Initialises src with NEXT_PUBLIC_APP_URL at SSR time
+         *     so the server-rendered HTML already has a valid src attr.
+         *  2. Corrects to window.location.origin inside useEffect,
+         *     which fires only after full hydration — zero mismatch.
+         *  3. strategy="afterInteractive" guarantees the script never
+         *     blocks the critical rendering path.
+         */}
+        <AgentEmbedScript
+          agentId="6a09a160a67750fe223d8637"
+          accentColor="#00f2ff"
+        />
       </body>
     </html>
   );
