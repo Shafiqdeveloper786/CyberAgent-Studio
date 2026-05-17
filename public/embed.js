@@ -1,5 +1,5 @@
 /**
- * CyberAgent Studio — Embed Script  v12
+ * CyberAgent Studio — Embed Script  v13
  * Drop a single <script> tag anywhere; no other JS required.
  *
  * Usage:
@@ -48,7 +48,7 @@
                   (typeof window !== "undefined" ? window.location.origin : "");
   var widgetUrl = base + "/widget/" + agentId;
 
-  console.log("[Nexa Widget] v11 — Initializing | agentId:", agentId, "| base:", base);
+  console.log("[Nexa Widget] v13 — Initializing | agentId:", agentId, "| base:", base);
 
   /* ── 2. Mobile detection (evaluated at click-time) ── */
   function isMobile() {
@@ -80,9 +80,11 @@
     container.classList.remove("nexa-expanded");
     btn.innerHTML = BOT_SVG;
     btn.setAttribute("aria-label", "Open CyberAgent chat");
-    /* Restore launcher bubble — it was hidden on expand so the iframe
-       input area was never obscured by the circular button backdrop.  */
-    btn.style.display = "";
+    /* Remove the !important inline override so the stylesheet's
+       display:flex rule takes over again, restoring the bubble.     */
+    btn.style.removeProperty("display");
+    btn.style.removeProperty("visibility");
+    btn.style.removeProperty("pointer-events");
     document.body.style.overflow = savedOverflow || "";
     savedOverflow = "";
     open = false;
@@ -91,10 +93,14 @@
 
   function expand() {
     container.classList.add("nexa-expanded");
-    /* Hide the launcher button entirely when the panel is open.
-       The iframe's own X button is the sole close trigger (via postMessage).
-       This eliminates the circular button overlapping the chat text input.  */
-    btn.style.display = "none";
+    /* The stylesheet sets display:flex !important on #nexa-widget-btn,
+       so a plain assignment (btn.style.display="none") loses the cascade
+       war and the circular button stays visible, overlapping the text input.
+       setProperty with "important" creates an inline !important declaration
+       that wins over every stylesheet rule — both circles vanish entirely.  */
+    btn.style.setProperty("display",        "none",   "important");
+    btn.style.setProperty("visibility",     "hidden", "important");
+    btn.style.setProperty("pointer-events", "none",   "important");
     if (isMobile()) {
       savedOverflow = document.body.style.overflow || "";
       document.body.style.overflow = "hidden";
@@ -207,6 +213,20 @@
       "    transform:  scale(1.08) !important;",
       "    box-shadow: 0 6px 28px " + A + "aa, 0 2px 8px rgba(0,0,0,.5) !important;",
       "  }",
+      "}",
+
+      /* ── ALL screens: nuke both circular layers when the panel is open ──
+         The button rule below was previously only inside @media(max-width:640px)
+         which left it fully visible on desktop, overlapping the text input.
+         This rule wins at the stylesheet level; JS setProperty("important")
+         provides a belt-and-suspenders !important override on top.          */
+      "#nexa-agent-root.nexa-expanded #nexa-widget-btn {",
+      "  display:        none    !important;",
+      "  visibility:     hidden  !important;",
+      "  pointer-events: none    !important;",
+      "  opacity:        0       !important;",
+      "  width:          0       !important;",
+      "  height:         0       !important;",
       "}",
 
       /* Mobile overrides — full-viewport modal */
