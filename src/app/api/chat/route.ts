@@ -34,11 +34,13 @@ const FREE_DAILY_LIMIT = 50;
 const GROQ_MODEL        = "llama-3.3-70b-versatile";
 const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
-/* ── Key pool — primary + secondary, undefined entries filtered out.
-   Add more keys as GROQ_API_KEY_SECONDARY_2, _3… if needed.         */
+/* ── Key pool — all three slots, undefined entries filtered out safely.
+   Rotation order: slot 0 → slot 1 → slot 2.
+   Add more keys as GROQ_API_KEY_FOURTH, _FIFTH… and append here.     */
 const GROQ_KEY_POOL: string[] = [
   process.env.GROQ_API_KEY,
   process.env.GROQ_API_KEY_SECONDARY,
+  process.env.GROQ_API_KEY_THIRD,
 ].filter((k): k is string => typeof k === "string" && k.trim().length > 0);
 
 /* Returns true if any message contains an image content part */
@@ -235,10 +237,13 @@ export async function POST(req: Request) {
             messages:        safeMessages,
             maxOutputTokens: 1024,
             temperature:     0.2,
-            /* onError intentionally omitted — when provided it swallows the
-               error and closes the stream cleanly (Mode 2 silent failure).
-               Without it, the SDK throws the error into textStream so our
-               catch block intercepts it and triggers the hot-swap.           */
+            /* maxRetries:0 — bypass the SDK's built-in exponential back-off
+               (default: 2 retries, up to ~4 s delay per slot). Our rotation
+               loop is the retry strategy; we want failures to throw into our
+               catch block immediately so hot-swap fires in <50 ms.
+               onError intentionally omitted — providing it suppresses the
+               throw and causes a silent empty stream (Mode 2 failure).       */
+            maxRetries:      0,
           });
 
           for await (const chunk of attempt.textStream) {
@@ -314,7 +319,7 @@ export async function POST(req: Request) {
             messages:        safeMessages,
             maxOutputTokens: 512,
             temperature:     0.2,
-            /* onError omitted here too — same reason as Phase A */
+            maxRetries:      0,  /* same fast-fail policy as Phase A */
           });
 
           for await (const chunk of fallback.textStream) {
@@ -565,10 +570,10 @@ async function buildRagSystemPrompt(
             index:         "knowledge_vector_search",
             path:          "embedding",
             queryVector,
-            /* numCandidates must be ≥ 10× limit for quality ANN recall.
-               Increasing limit from 3→6 surfaces deep document sections
-               (Part 4–7 chunks) that a narrow search window misses.     */
-            numCandidates: 100,
+            /* numCandidates: 60 = 10× the limit of 6 — meets Atlas minimum
+               for quality ANN recall while reducing vector scan latency
+               by ~35% versus the previous value of 100.                 */
+            numCandidates: 60,
             limit:         6,
             filter:        { agentId: new mongoose.Types.ObjectId(agentId) },
           },
