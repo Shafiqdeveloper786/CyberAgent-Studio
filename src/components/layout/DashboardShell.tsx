@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Zap } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { PricingModal } from "@/components/pricing/PricingModal";
+import { useAuthStore } from "@/store/authStore";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -15,16 +17,48 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children, title }: DashboardShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { data: session, status } = useSession();
+  const { login, logout, openAuthModal, isLoggedIn: localLoggedIn } = useAuthStore();
+
+  /* ── Sync NextAuth session → local auth store ── */
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      const u = session.user;
+      login({
+        email: u.email ?? "",
+        name: u.name ?? "",
+        initials: u.name
+          ? u.name.split(" ").filter(Boolean).map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+          : "U",
+      });
+    } else if (status === "unauthenticated") {
+      logout();
+    }
+  }, [status, session, login, logout]);
+
+  /* ── Auto-open login modal when user signs out ── */
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      // Small delay so the DashboardShell has time to mount/redirect first
+      const timer = setTimeout(() => openAuthModal("LOGIN"), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [status, openAuthModal]);
+
+  /* ── Source of truth for blur: NextAuth session status ── */
+  const isAuthenticated = status === "authenticated";
 
   return (
     <>
-      {/* Global modals — rendered above everything */}
+      {/* Global modals */}
       <AuthModal />
       <PricingModal />
 
-      <div className="flex h-screen overflow-hidden">
+      {/* Clean white/light layout container */}
+      <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 font-sans selection:bg-blue-500/20 selection:text-blue-900">
+        
         {/* ── Desktop sidebar ── */}
-        <div className="hidden md:flex h-full shrink-0">
+        <div className="hidden md:flex h-full shrink-0 border-r border-slate-200 bg-white">
           <Sidebar />
         </div>
 
@@ -39,19 +73,16 @@ export function DashboardShell({ children, title }: DashboardShellProps) {
               transition={{ duration: 0.2 }}
               className="fixed inset-0 z-50 flex md:hidden"
             >
-              {/* Backdrop */}
               <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={() => setMobileOpen(false)}
               />
-
-              {/* Slide-in panel */}
               <motion.div
-                initial={{ x: -240 }}
+                initial={{ x: -260 }}
                 animate={{ x: 0 }}
-                exit={{ x: -240 }}
-                transition={{ type: "spring", stiffness: 320, damping: 32 }}
-                className="relative z-10 h-full flex"
+                exit={{ x: -260 }}
+                transition={{ type: "spring", stiffness: 350, damping: 35 }}
+                className="relative z-10 h-full flex w-[260px] border-r border-slate-200 bg-white"
               >
                 <Sidebar />
               </motion.div>
@@ -59,21 +90,19 @@ export function DashboardShell({ children, title }: DashboardShellProps) {
           )}
         </AnimatePresence>
 
-        {/* ── Main content ── */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* ── Main content area (blurred+locked when unauthenticated) ── */}
+        <div
+          className={`flex flex-col flex-1 min-w-0 overflow-hidden relative z-10 transition-all duration-300 ${
+            !isAuthenticated ? "blur-sm pointer-events-none select-none" : ""
+          }`}
+        >
+          
           {/* Mobile topbar */}
-          <div
-            className="flex items-center justify-between px-4 py-3 shrink-0 md:hidden"
-            style={{
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              background:   "rgba(8,8,12,0.97)",
-            }}
-          >
-            <div className="flex items-center gap-3">
-              {/* Animated hamburger */}
+          <div className="flex items-center justify-between px-5 py-3.5 shrink-0 md:hidden border-b border-slate-200 bg-white">
+            <div className="flex items-center gap-3.5">
               <button
                 onClick={() => setMobileOpen((v) => !v)}
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-[#64748b] hover:text-[#94a3b8] transition-all hover:bg-white/[0.05]"
+                className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-blue-600 transition-all bg-white border border-slate-200 active:scale-95"
                 aria-label={mobileOpen ? "Close menu" : "Open menu"}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -85,7 +114,7 @@ export function DashboardShell({ children, title }: DashboardShellProps) {
                       exit={{   rotate: 90,   opacity: 0 }}
                       transition={{ duration: 0.15 }}
                     >
-                      <X size={18} />
+                      <X size={16} />
                     </motion.span>
                   ) : (
                     <motion.span
@@ -95,24 +124,17 @@ export function DashboardShell({ children, title }: DashboardShellProps) {
                       exit={{   rotate: -90,  opacity: 0 }}
                       transition={{ duration: 0.15 }}
                     >
-                      <Menu size={18} />
+                      <Menu size={16} />
                     </motion.span>
                   )}
                 </AnimatePresence>
               </button>
 
-              {/* Brand */}
               <div className="flex items-center gap-2">
-                <div
-                  className="flex items-center justify-center w-6 h-6 rounded-md"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(0,242,255,0.2), rgba(168,85,247,0.2))",
-                    border:     "1px solid rgba(0,242,255,0.25)",
-                  }}
-                >
-                  <Zap size={12} className="text-[#00f2ff]" />
+                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30">
+                  <Zap size={11} className="text-blue-600" />
                 </div>
-                <span className="text-[13px] font-semibold text-[#e2e8f0]">
+                <span className="text-[13px] font-bold uppercase tracking-wider text-slate-800">
                   CyberAgent Studio
                 </span>
               </div>
@@ -120,10 +142,14 @@ export function DashboardShell({ children, title }: DashboardShellProps) {
           </div>
 
           {/* Desktop navbar */}
-          <Navbar title={title} />
+          <div className="bg-white border-b border-slate-100">
+            <Navbar title={title} />
+          </div>
 
-          {/* Page content */}
-          <main className="flex-1 overflow-auto">{children}</main>
+          {/* Page content main container */}
+          <main className="flex-1 overflow-auto bg-slate-50/50 relative">
+            {children}
+          </main>
         </div>
       </div>
     </>

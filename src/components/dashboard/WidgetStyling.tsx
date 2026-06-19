@@ -5,56 +5,44 @@ import { useAgentStore, type Theme } from "@/store/agentStore";
 import { cn } from "@/lib/utils";
 
 const ACCENT_COLORS = [
-  "#00f2ff",
-  "#06b6d4",
-  "#3b82f6",
-  "#a855f7",
-  "#ec4899",
+  "#2563eb", // Corporate Blue
+  "#0ea5e9", // Sky Blue
+  "#0284c7", // Deep Water Blue
+  "#4f46e5", // Indigo
+  "#0d9488", // Teal
 ];
 
 const THEMES: { id: Theme; label: string; bg: string; border: string; preview: string }[] = [
   {
     id:      "cyberpunk",
     label:   "Cyberpunk",
-    bg:      "linear-gradient(135deg, #0a0a1a, #0d1117)",
-    border:  "rgba(0,242,255,0.4)",
-    preview: "#00f2ff",
+    bg:      "linear-gradient(135deg, #0f172a, #1e293b)",
+    border:  "#334155",
+    preview: "#38bdf8",
   },
   {
     id:      "minimal-dark",
     label:   "Minimal Dark",
     bg:      "linear-gradient(135deg, #18181b, #27272a)",
-    border:  "rgba(255,255,255,0.12)",
-    preview: "#71717a",
+    border:  "#3f3f46",
+    preview: "#a1a1aa",
   },
   {
     id:      "corporate-light",
     label:   "Corporate Light",
     bg:      "linear-gradient(135deg, #f8fafc, #e2e8f0)",
-    border:  "rgba(0,0,0,0.12)",
+    border:  "#cbd5e1",
     preview: "#0f172a",
   },
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <h3
-        className="text-[11px] font-bold tracking-[0.1em] uppercase"
-        style={{
-          background:           "linear-gradient(90deg,#00f2ff,#a855f7)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor:  "transparent",
-        }}
-      >
+    <div className="space-y-1.5">
+      <h3 className="text-[11px] font-bold tracking-[0.06em] uppercase text-slate-400">
         {children}
       </h3>
-      <div
-        style={{
-          height:     1,
-          background: "linear-gradient(90deg,rgba(0,242,255,0.45),rgba(168,85,247,0.2),transparent)",
-        }}
-      />
+      <div className="h-px bg-slate-100 w-full" />
     </div>
   );
 }
@@ -90,30 +78,34 @@ export function WidgetStyling() {
   };
 
   return (
-    <section className="space-y-5">
-      <SectionHeading>Widget Styling</SectionHeading>
+    <section className="space-y-4">
+      <SectionHeading>Widget Interface Customization</SectionHeading>
 
-      {/* Accent Color */}
+      {/* Accent Color Selection Section */}
       <div className="space-y-2">
-        <label className="block text-[12px] font-medium text-[#94a3b8]">Accent Color</label>
+        <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Accent Color</label>
         <div className="flex items-center gap-2">
-          {ACCENT_COLORS.map((color) => (
-            <button
-              key={color}
-              onClick={() => setColor(color)}
-              title={color}
-              className="w-7 h-7 rounded-md transition-all duration-150 hover:scale-110 focus:outline-none"
-              style={{
-                background: color,
-                boxShadow:  config.accentColor === color
-                  ? `0 0 0 2px #050505, 0 0 0 4px ${color}, 0 0 12px ${color}60`
-                  : `0 0 8px ${color}30`,
-              }}
-              aria-label={`Accent color ${color}`}
-            />
-          ))}
+          {ACCENT_COLORS.map((color) => {
+            const isSelected = config.accentColor === color;
+            return (
+              <button
+                key={color}
+                onClick={() => setColor(color)}
+                title={color}
+                className={cn(
+                  "w-7 h-7 rounded-lg transition-all duration-150 active:scale-95 focus:outline-none border shadow-sm cursor-pointer",
+                  isSelected ? "border-slate-800 scale-105" : "border-transparent hover:scale-105"
+                )}
+                style={{
+                  backgroundColor: color,
+                  boxShadow: isSelected ? `0 0 0 2px #white, 0 0 0 3px ${color}` : undefined
+                }}
+                aria-label={`Accent color ${color}`}
+              />
+            );
+          })}
 
-          {/* Custom color picker */}
+          {/* Custom Native Color Picker Block */}
           <div className="relative w-7 h-7">
             <input
               type="color"
@@ -121,88 +113,70 @@ export function WidgetStyling() {
               onChange={(e) => setColor(e.target.value)}
               className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
             />
-            <div
-              className="w-7 h-7 rounded-md border border-white/10 flex items-center justify-center text-[10px] text-[#64748b] hover:border-white/20 transition-colors"
-              style={{ background: `${config.accentColor}20` }}
-            >
+            <div className="w-7 h-7 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-[13px] text-slate-500 font-bold shadow-sm transition-colors cursor-pointer">
               +
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Selected Accent Status Meta Matrix */}
+        <div className="flex items-center gap-2 pt-0.5">
           <div
-            className="w-4 h-4 rounded"
-            style={{ background: config.accentColor, boxShadow: `0 0 8px ${config.accentColor}50` }}
+            className="w-3.5 h-3.5 rounded border border-slate-200 shadow-sm"
+            style={{ backgroundColor: config.accentColor }}
           />
-          <code className="text-[10px] text-[#475569]">{config.accentColor}</code>
+          <code className="text-[10px] font-mono text-slate-500 font-semibold uppercase tracking-wider">{config.accentColor}</code>
           {activeAgentId && (
-            <span className="text-[10px] text-[#00ff94]">✓ saved to agent</span>
+            <span className="text-[10px] text-emerald-600 font-medium ml-1">✓ Cloud Synchronized</span>
           )}
         </div>
       </div>
 
-      {/* Theme */}
+      {/* Interface Layout Theme Grid Selection Section */}
       <div className="space-y-2">
-        <label className="block text-[12px] font-medium text-[#94a3b8]">Theme</label>
-        <div className="grid grid-cols-3 gap-2">
-          {THEMES.map(({ id, label, bg, border, preview }) => (
-            <button
-              key={id}
-              onClick={() => setTheme(id)}
-              className={cn(
-                "flex flex-col items-center gap-2 p-3 rounded-lg transition-all duration-150",
-                config.theme === id ? "ring-1" : "hover:bg-white/[0.03]"
-              )}
-              style={{
-                border:     config.theme === id
-                  ? `1px solid ${border}`
-                  : "1px solid rgba(255,255,255,0.06)",
-                background: config.theme === id
-                  ? `${border.replace("0.4", "0.05")}`
-                  : "transparent",
-                boxShadow:  config.theme === id
-                  ? `0 0 12px ${border.replace("0.4", "0.15")}`
-                  : "none",
-              }}
-            >
-              <div
-                className="w-full h-9 rounded"
-                style={{ background: bg, border: `1px solid ${border.replace("0.4", "0.2")}` }}
+        <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Theme Engine</label>
+        <div className="grid grid-cols-3 gap-2.5">
+          {THEMES.map(({ id, label, bg, border, preview }) => {
+            const isSelected = config.theme === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setTheme(id)}
+                className={cn(
+                  "flex flex-col items-center gap-2 p-2.5 rounded-xl transition-all border outline-none bg-white text-left cursor-pointer",
+                  isSelected 
+                    ? "border-slate-800 bg-slate-50/50 shadow-sm" 
+                    : "border-slate-200 hover:border-slate-300"
+                )}
               >
-                <div className="flex flex-col h-full p-1 gap-0.5 justify-end">
-                  <div className="h-1.5 w-3/4 rounded-full self-end" style={{ background: preview, opacity: 0.8 }} />
-                  <div className="h-1.5 w-1/2 rounded-full" style={{ background: "rgba(255,255,255,0.1)" }} />
+                {/* Visual Canvas Mock-up Preview Structure */}
+                <div
+                  className="w-full h-10 rounded-lg border shadow-inner overflow-hidden relative"
+                  style={{ background: bg, borderColor: border }}
+                >
+                  <div className="flex flex-col h-full p-1.5 gap-1 justify-end">
+                    <div className="h-1 w-3/4 rounded-full self-end" style={{ backgroundColor: preview }} />
+                    <div className="h-1 w-1/2 rounded-full" style={{ backgroundColor: id === "corporate-light" ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.1)" }} />
+                  </div>
                 </div>
-              </div>
-              <span className="text-[11px] text-[#64748b]">{label}</span>
-            </button>
-          ))}
+                <span className={cn(
+                  "text-[11px] font-semibold tracking-tight transition-colors",
+                  isSelected ? "text-slate-800" : "text-slate-500"
+                )}>
+                  {label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ⚠️ Red alert note */}
-      <div
-        className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl"
-        style={{
-          background: "rgba(239,68,68,0.06)",
-          border:     "1px solid rgba(239,68,68,0.22)",
-        }}
-      >
-        <span className="text-base leading-none mt-0.5 shrink-0">⚠️</span>
-        <p className="text-[11px] leading-relaxed" style={{ color: "#fca5a5" }}>
-          <span className="font-bold">Important:</span> Click{" "}
-          <span
-            className="font-semibold"
-            style={{
-              background:           "linear-gradient(90deg,#00f2ff,#a855f7)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor:  "transparent",
-            }}
-          >
-            &quot;Update Agent&quot;
-          </span>{" "}
-          to apply and sync these styling changes to your live widget.
+      {/* Corporate Notification Information Message Box */}
+      <div className="flex items-start gap-3 px-3.5 py-3 rounded-xl bg-amber-50/70 border border-amber-100">
+        <span className="text-sm leading-none shrink-0 text-amber-600">ⓘ</span>
+        <p className="text-[11px] leading-relaxed text-amber-800">
+          <span className="font-bold">Deployment Notice:</span> Please remember to dispatch execution via the{" "}
+          <span className="font-bold text-slate-900">&quot;Update Agent&quot;</span> interaction window pipeline control matrix to push configuration schema revisions live down to embedded instances immediately.
         </p>
       </div>
     </section>

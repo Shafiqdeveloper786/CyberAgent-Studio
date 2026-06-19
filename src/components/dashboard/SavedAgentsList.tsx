@@ -17,14 +17,14 @@ export interface SavedAgent {
 }
 
 interface Props {
-  agents:        SavedAgent[];
-  loading:       boolean;
+  agents:         SavedAgent[];
+  loading:        boolean;
   activeAgentId: string | null;
   onSelect:      (agent: SavedAgent) => void;
   onDelete:      (id: string) => Promise<void>;
 }
 
-/* ── Premium neon toggle switch ── */
+/* ── Corporate Slate Control Toggle Switch ── */
 function StatusToggle({
   agentId,
   isActive,
@@ -41,33 +41,26 @@ function StatusToggle({
       onClick={(e) => onToggle(e, agentId)}
       disabled={isToggling}
       aria-label={isActive ? "Deactivate agent" : "Activate agent"}
-      className="relative shrink-0 focus:outline-none"
-      style={{ width: 38, height: 22 }}
+      className="relative shrink-0 focus:outline-none cursor-pointer disabled:cursor-not-allowed"
+      style={{ width: 36, height: 20 }}
     >
-      {/* Track */}
+      {/* Track Framework */}
       <div
-        className="absolute inset-0 rounded-full transition-all duration-300"
-        style={{
-          background: isActive
-            ? "rgba(0,255,148,0.18)"
-            : "rgba(255,255,255,0.06)",
-          border: isActive
-            ? "1px solid rgba(0,255,148,0.45)"
-            : "1px solid rgba(255,255,255,0.10)",
-          boxShadow: isActive ? "0 0 12px rgba(0,255,148,0.25)" : "none",
-        }}
+        className={cn(
+          "absolute inset-0 rounded-full transition-colors duration-200 border",
+          isActive 
+            ? "bg-emerald-500 border-emerald-600" 
+            : "bg-slate-200 border-slate-300"
+        )}
       />
-      {/* Knob */}
+      {/* Absolute Sliding Knob */}
       <div
-        className="absolute rounded-full transition-all duration-300"
+        className="absolute rounded-full bg-white shadow-sm transition-all duration-200"
         style={{
-          width:      isToggling ? 18 : 14,
-          height:     14,
-          top:        4,
-          left:       isActive ? (isToggling ? 16 : 20) : 4,
-          background: isActive ? "#00ff94" : "#475569",
-          boxShadow:  isActive ? "0 0 8px rgba(0,255,148,0.7)" : "none",
-          opacity:    isToggling ? 0.6 : 1,
+          width: 14,
+          height: 14,
+          top: 3,
+          left: isActive ? 19 : 3,
         }}
       />
     </button>
@@ -83,28 +76,23 @@ export function SavedAgentsList({
 }: Props) {
   const [deletingId,     setDeletingId]     = useState<string | null>(null);
   const [togglingId,     setTogglingId]     = useState<string | null>(null);
-  /* Local status overrides for optimistic UI — keyed by agentId */
   const [statusOverride, setStatusOverride] = useState<Record<string, "active" | "inactive">>({});
-  /* Pending confirmation — set before opening the modal, cleared on dismiss */
   const [pending, setPending] = useState<{
     type:      "deactivate" | "delete";
     agentId:   string;
     agentName: string;
   } | null>(null);
 
-  /* Resolve displayed status: local override wins over server value */
   const getStatus = (agent: SavedAgent): "active" | "inactive" => {
     if (agent._id in statusOverride) return statusOverride[agent._id];
     return agent.status === "active" ? "active" : "inactive";
   };
 
-  /* ── Intercept delete → open confirmation modal ── */
   const handleDelete = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
     setPending({ type: "delete", agentId: id, agentName: name });
   };
 
-  /* ── Perform delete after modal confirmation ── */
   const confirmDelete = async () => {
     if (!pending || pending.type !== "delete") return;
     const { agentId, agentName } = pending;
@@ -112,7 +100,7 @@ export function SavedAgentsList({
     setDeletingId(agentId);
     try {
       await onDelete(agentId);
-      toast.success(`"${agentName}" deleted.`);
+      toast.success(`"${agentName}" successfully removed.`);
     } catch {
       toast.error("Could not delete agent.");
     } finally {
@@ -124,7 +112,6 @@ export function SavedAgentsList({
     e.stopPropagation();
     if (togglingId === agentId) return;
 
-    /* Deactivation requires confirmation — activating is instant */
     const currentStatus = getStatus(agents.find((a) => a._id === agentId)!);
     if (currentStatus === "active") {
       const agent = agents.find((a) => a._id === agentId);
@@ -144,12 +131,11 @@ export function SavedAgentsList({
   const executeToggle = async (agentId: string) => {
     if (togglingId === agentId) return;
 
-    const agent       = agents.find((a) => a._id === agentId);
+    const agent = agents.find((a) => a._id === agentId);
     if (!agent) return;
     const prevStatus  = getStatus(agent);
     const nextStatus: "active" | "inactive" = prevStatus === "active" ? "inactive" : "active";
 
-    /* Optimistic flip */
     setStatusOverride((prev) => ({ ...prev, [agentId]: nextStatus }));
     setTogglingId(agentId);
 
@@ -157,60 +143,48 @@ export function SavedAgentsList({
       const res = await fetch(`/api/agents/${agentId}/toggle`, { method: "PATCH" });
       if (!res.ok) throw new Error("Toggle request failed");
       const data = (await res.json()) as { status: "active" | "inactive" };
-      /* Confirm with server's canonical value */
       setStatusOverride((prev) => ({ ...prev, [agentId]: data.status }));
       toast.success(
         data.status === "active"
-          ? `"${agent.name}" is now active.`
-          : `"${agent.name}" deactivated.`
+          ? `"${agent.name}" deployment initialized.`
+          : `"${agent.name}" offline window set.`
       );
     } catch {
-      /* Rollback + glassmorphic error toast */
       setStatusOverride((prev) => ({ ...prev, [agentId]: prevStatus }));
-      toast.error("Status update failed — please try again.");
+      toast.error("Failed to sync deployment parameters.");
     } finally {
       setTogglingId(null);
     }
   };
 
   return (
-    <section className="space-y-4">
-      {/* Header */}
+    <section className="space-y-3.5">
+      {/* Grid Layout Header Row */}
       <div className="flex items-center justify-between">
-        <p className="section-label">Saved Agents</p>
-        {loading && <RefreshCw size={12} className="animate-spin text-[#334155]" />}
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Saved System Agents</p>
+        {loading && <RefreshCw size={12} className="animate-spin text-slate-400" />}
       </div>
 
-      {/* Empty state */}
+      {/* Corporate Empty State Wrapper */}
       {!loading && agents.length === 0 && (
-        <div
-          className="flex flex-col items-center gap-2.5 py-8 rounded-xl"
-          style={{
-            background: "rgba(255,255,255,0.015)",
-            border:     "1px dashed rgba(255,255,255,0.07)",
-          }}
-        >
-          <Bot size={28} className="text-[#1e293b]" />
-          <p className="text-[12px] text-[#334155]">No agents saved yet</p>
-          <p className="text-[11px] text-[#1e293b]">Configure and save your first agent above</p>
+        <div className="flex flex-col items-center justify-center gap-2 py-8 rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
+          <Bot size={24} className="text-slate-300" />
+          <p className="text-[12px] font-medium text-slate-600">No records allocated</p>
+          <p className="text-[11px] text-slate-400">Configure and save your first instance setup wizard above</p>
         </div>
       )}
 
-      {/* Agent cards */}
+      {/* Populated Dynamic Cards Framework */}
       {agents.length > 0 && (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-3">
           {agents.map((agent) => {
             const isSelected  = agent._id === activeAgentId;
-            const color       = agent.themeColor || "#00f2ff";
+            const accentColor = agent.themeColor || "#2563eb";
             const agentStatus = getStatus(agent);
             const isActive    = agentStatus === "active";
             const isToggling  = togglingId === agent._id;
 
             return (
-              /* div replaces button here — StatusToggle renders its own <button>
-                 inside this card. Nesting <button> inside <button> is invalid HTML
-                 and triggers React hydration errors. role="button" + tabIndex + onKeyDown
-                 preserves full keyboard accessibility.                                   */
               <div
                 key={agent._id}
                 role="button"
@@ -223,129 +197,76 @@ export function SavedAgentsList({
                   }
                 }}
                 className={cn(
-                  "relative group text-left rounded-2xl w-full transition-all duration-300",
-                  "cursor-pointer focus:outline-none select-none",
-                  isSelected ? "scale-[1.01]" : "hover:scale-[1.005] hover:-translate-y-0.5"
+                  "relative group text-left rounded-xl w-full transition-all border p-4 select-none outline-none bg-white",
+                  isSelected 
+                    ? "border-slate-800 shadow-md shadow-slate-100" 
+                    : "border-slate-200 hover:border-slate-300 shadow-sm"
                 )}
-                style={{
-                  padding:        "18px 20px 16px",
-                  background:     isSelected
-                    ? `linear-gradient(135deg, ${color}12 0%, rgba(5,5,18,0.96) 60%)`
-                    : "linear-gradient(135deg, rgba(8,8,24,0.95) 0%, rgba(5,5,18,0.98) 100%)",
-                  backdropFilter: "blur(16px)",
-                  border:         `1.5px solid ${color}${isSelected ? "60" : "30"}`,
-                  boxShadow: [
-                    `0 0 0 1px ${color}${isSelected ? "18" : "08"}`,
-                    `0 0 ${isSelected ? 40 : 20}px ${color}${isSelected ? "20" : "08"}`,
-                    isActive ? `0 0 60px ${color}06` : "",
-                    "0 8px 32px rgba(0,0,0,0.5)",
-                    `inset 0 1px 0 ${color}${isSelected ? "25" : "12"}`,
-                  ].filter(Boolean).join(","),
-                }}
               >
-                {/* Full-width gradient top shimmer */}
-                <div
-                  className="absolute top-0 left-0 right-0 h-px rounded-t-2xl"
-                  style={{
-                    background: `linear-gradient(90deg, transparent 5%, ${color}${isSelected ? "cc" : "70"} 50%, transparent 95%)`,
-                  }}
-                />
-
-                {/* Left accent stripe */}
-                <div
-                  className="absolute left-0 top-4 bottom-4 w-[3px] rounded-full"
-                  style={{
-                    background:  `linear-gradient(180deg, ${color}, ${color}40)`,
-                    boxShadow:   `0 0 12px ${color}80`,
-                    opacity:     isSelected ? 1 : 0.5,
-                    transition:  "opacity .2s",
-                  }}
-                />
-
-                {/* Selected badge */}
+                {/* Active Framework Context Top Bar Indicator */}
                 {isSelected && (
-                  <div
-                    className="absolute top-3 right-10 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase"
-                    style={{
-                      background: `${color}20`,
-                      border:     `1px solid ${color}50`,
-                      color,
-                      boxShadow:  `0 0 8px ${color}30`,
-                    }}
-                  >
-                    <Check size={8} strokeWidth={3.5} /> SELECTED
+                  <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold tracking-wider uppercase bg-slate-900 text-white shadow-sm">
+                    <Check size={9} strokeWidth={3} /> SELECTED
                   </div>
                 )}
 
-                {/* Name + delete row */}
-                <div className="flex items-center justify-between gap-3 mb-3 pl-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                      style={{
-                        background: `${color}18`,
-                        border:     `1px solid ${color}35`,
-                        boxShadow:  `0 0 14px ${color}25`,
+                {/* Primary Metadata Content Rows */}
+                <div className="flex items-start justify-between gap-3 mb-2.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div 
+                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border shadow-sm transition-colors"
+                      style={{ 
+                        backgroundColor: isSelected ? `${accentColor}10` : "#f8fafc",
+                        borderColor: isSelected ? `${accentColor}25` : "#e2e8f0"
                       }}
                     >
-                      <Bot size={15} style={{ color }} />
+                      <Bot size={15} style={{ color: isSelected ? accentColor : "#64748b" }} />
                     </div>
+                    
                     <div className="min-w-0">
-                      <p className="text-[14px] font-bold text-[#e2e8f0] truncate leading-tight">
+                      <p className="text-[13px] font-bold text-slate-800 truncate leading-tight">
                         {agent.name}
                       </p>
-                      <p className="text-[10px] text-[#475569] mt-0.5 truncate">
-                        {new Date(agent.createdAt).toLocaleDateString("en-US", {
-                          month: "long", day: "numeric", year: "numeric",
+                      <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                        Added {new Date(agent.createdAt).toLocaleDateString("en-US", {
+                          month: "short", day: "numeric", year: "numeric",
                         })}
                       </p>
                     </div>
                   </div>
 
-                  <div
+                  {/* Accessible Trash Action Node Button */}
+                  <button
                     onClick={(e) => handleDelete(e, agent._id, agent.name)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" &&
-                      handleDelete(e as unknown as React.MouseEvent, agent._id, agent.name)
-                    }
-                    title="Delete agent"
+                    title="Delete system record"
                     className={cn(
-                      "shrink-0 flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-150",
-                      "opacity-0 group-hover:opacity-100",
-                      "text-[#475569] hover:text-red-400 hover:bg-red-500/15",
+                      "shrink-0 flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white shadow-sm transition-all text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200",
+                      "opacity-0 group-hover:opacity-100 focus:opacity-100",
                       deletingId === agent._id && "opacity-100"
                     )}
                   >
                     {deletingId === agent._id
-                      ? <RefreshCw size={12} className="animate-spin" />
-                      : <Trash2 size={12} />
+                      ? <RefreshCw size={11} className="animate-spin" />
+                      : <Trash2 size={11} />
                     }
+                  </button>
+                </div>
+
+                {/* Tag Metadata Layout Row */}
+                <div className="mb-3.5">
+                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold">
+                    <Zap size={10} className="text-slate-400 shrink-0" />
+                    <span className="truncate max-w-[200px]">{agent.persona}</span>
                   </div>
                 </div>
 
-                {/* Persona badge */}
-                <div className="pl-3 mb-3">
-                  <div
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold"
-                    style={{
-                      background: `${color}12`,
-                      border:     `1px solid ${color}28`,
-                      color,
-                    }}
-                  >
-                    <Zap size={9} />{agent.persona}
-                  </div>
-                </div>
+                {/* Structural Border Break Line */}
+                <div className="h-px bg-slate-100 -mx-4 my-3" />
 
-                {/* Footer — toggle + status label */}
-                <div
-                  className="flex items-center justify-between pl-3 pt-3"
-                  style={{ borderTop: `1px solid ${color}12` }}
-                >
-                  <div
-                    className="flex items-center gap-2.5"
+                {/* Footer Operations - Syncing with parameters metrics */}
+                <div className="flex items-center justify-between">
+                  <div 
+                    className="flex items-center gap-2"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <StatusToggle
@@ -354,52 +275,42 @@ export function SavedAgentsList({
                       isToggling={isToggling}
                       onToggle={handleToggle}
                     />
-                    <span
-                      className="text-[11px] font-bold transition-all duration-200"
-                      style={{
-                        color:      isActive ? "#00ff94" : "#334155",
-                        textShadow: isActive ? "0 0 10px rgba(0,255,148,0.5)" : "none",
-                        letterSpacing: "0.04em",
-                      }}
-                    >
-                      {isToggling ? "updating…" : isActive ? "● ACTIVE" : "○ INACTIVE"}
+                    <span className={cn(
+                      "text-[10px] font-bold tracking-wide uppercase",
+                      isActive ? "text-emerald-600" : "text-slate-400"
+                    )}>
+                      {isToggling ? "Updating Status…" : isActive ? "Active Online" : "Inactive Window"}
                     </span>
                   </div>
 
-                  <div
-                    className="text-[9px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full"
-                    style={{
-                      background: `${color}10`,
-                      border:     `1px solid ${color}20`,
-                      color:      `${color}99`,
-                    }}
-                  >
-                    AGENT
+                  <div className="text-[9px] font-bold tracking-wider uppercase text-slate-400">
+                    System Node
                   </div>
                 </div>
+
               </div>
             );
           })}
         </div>
       )}
 
-      {/* ── Deactivation confirmation modal ── */}
+      {/* ── Deactivation Confirmation Dialogue Modal ── */}
       <ConfirmModal
         open={pending?.type === "deactivate"}
-        title="Deactivate this agent?"
-        description="Are you sure you want to deactivate this agent? It will stop responding on all external websites immediately."
-        confirmLabel="Deactivate"
+        title="Suspend Active Agent Deployment?"
+        description="Are you sure you want to decouple this workspace? Current live standalone integrations will terminate processing pipelines instantaneously."
+        confirmLabel="Deactivate Framework"
         danger
         onConfirm={confirmDeactivate}
         onCancel={() => setPending(null)}
       />
 
-      {/* ── Deletion confirmation modal ── */}
+      {/* ── Permanence Deletion Dialogue Modal ── */}
       <ConfirmModal
         open={pending?.type === "delete"}
-        title={`Delete "${pending?.agentName}"?`}
-        description="This will permanently remove the agent and all its associated data. This action cannot be undone."
-        confirmLabel="Delete Agent"
+        title={`Purge system structural identity: "${pending?.agentName}"?`}
+        description="This execution strictly removes the target environment from all remote indexing channels. Re-compiling historical records is impossible."
+        confirmLabel="Delete Permanently"
         danger
         onConfirm={confirmDelete}
         onCancel={() => setPending(null)}

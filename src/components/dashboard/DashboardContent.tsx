@@ -9,28 +9,14 @@ import { EmbedCodeSection } from "./EmbedCodeSection";
 import { WidgetPreview } from "@/components/widget/WidgetPreview";
 import { SavedAgentsList, type SavedAgent } from "./SavedAgentsList";
 
-/* Gradient panel title used for both columns */
+/* Reusable structural section title matching corporate identity layout */
 function PanelTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <h2
-        className="text-[12px] font-black tracking-[0.14em] uppercase"
-        style={{
-          background:           "linear-gradient(90deg,#00f2ff 0%,#a855f7 80%,#ec4899 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor:  "transparent",
-          textShadow:           "none",
-          filter:               "drop-shadow(0 0 8px rgba(0,242,255,0.25))",
-        }}
-      >
+    <div className="space-y-1.5">
+      <h2 className="text-[12px] font-bold tracking-[0.06em] uppercase text-slate-700">
         {children}
       </h2>
-      <div
-        style={{
-          height:     1,
-          background: "linear-gradient(90deg,rgba(0,242,255,0.35),rgba(168,85,247,0.15),transparent)",
-        }}
-      />
+      <div className="h-px bg-slate-100 w-full" />
     </div>
   );
 }
@@ -40,7 +26,7 @@ export function DashboardContent() {
   const { loadAgent, activeAgentId } = useAgentStore();
 
   /* Stable refs so fetchAgents doesn't re-create on every activeAgentId change,
-     which would cause a fetch-loop after auto-select fires.                     */
+     which would cause a fetch-loop after auto-select fires.                  */
   const loadAgentRef      = useRef(loadAgent);
   const activeAgentIdRef  = useRef(activeAgentId);
   useEffect(() => { loadAgentRef.current     = loadAgent;    }, [loadAgent]);
@@ -59,7 +45,7 @@ export function DashboardContent() {
         setAgents(list);
         /* Auto-select: on the 1-agent plan, bind the agent globally so all
            pages (Knowledge Base, Analytics, Embed Code) work without the user
-           having to manually click a card first.                              */
+           having to manually click a card first.                             */
         if (!activeAgentIdRef.current && list.length > 0) {
           loadAgentRef.current(list[0]);
         }
@@ -82,23 +68,19 @@ export function DashboardContent() {
   }, [loadAgent]);
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-full lg:min-h-0">
-
+    <div className="grid grid-cols-1 lg:grid-cols-12 h-[calc(100vh-64px)] overflow-hidden">
       {/* ════════════════════════════════════
-          LEFT — Dashboard Control
-      ════════════════════════════════════ */}
-      <div
-        className="w-full lg:w-[52%] xl:w-[48%] lg:min-h-0 lg:overflow-y-auto"
-        style={{ borderRight: "1px solid rgba(255,255,255,0.05)" }}
-      >
+          LEFT — Dashboard Control Panel (col-span-7)
+         ════════════════════════════════════ */}
+      <div className="lg:col-span-7 overflow-y-auto h-full pr-2 border-r border-slate-100 bg-white">
         <div className="px-4 sm:px-6 py-5 shrink-0">
           <PanelTitle>Dashboard Control</PanelTitle>
         </div>
 
-        <div className="px-4 sm:px-6 pb-8 space-y-8">
+        <div className="px-4 sm:px-6 pb-8 space-y-6">
           <AgentSetup onSaved={fetchAgents} />
 
-          <div className="h-px bg-white/5" />
+          <div className="h-px bg-slate-100" />
 
           <SavedAgentsList
             agents={agents}
@@ -108,30 +90,32 @@ export function DashboardContent() {
             onDelete={handleDelete}
           />
 
-          <div className="h-px bg-white/5" />
+          <div className="h-px bg-slate-100" />
           <WidgetStyling />
-          <div className="h-px bg-white/5" />
+          <div className="h-px bg-slate-100" />
           <EmbedCodeSection />
         </div>
       </div>
 
       {/* ════════════════════════════════════
-          RIGHT — Live Widget Preview
-      ════════════════════════════════════ */}
-      <div
-        className="flex flex-col lg:flex-1 lg:min-h-0 lg:overflow-hidden"
-        style={{ minHeight: 520 }}
-      >
-        {/* Single heading — not repeated inside WidgetPreview */}
-        <div className="px-4 sm:px-6 py-5 shrink-0">
-          <PanelTitle>Live Widget Preview</PanelTitle>
-        </div>
+          RIGHT — Live Widget Preview (col-span-5)
+          Strictly locked — never scrolls, stays fixed
+         ════════════════════════════════════ */}
+      <div className="lg:col-span-5 h-full relative">
+        <div className="sticky top-0 self-start w-full h-full flex flex-col">
+          {/* Section heading */}
+          <div className="px-4 sm:px-6 py-5 shrink-0 bg-white">
+            <PanelTitle>Live Widget Preview</PanelTitle>
+          </div>
 
-        <div className="flex-1 px-4 sm:px-6 pb-6 lg:pb-8 lg:min-h-0 lg:overflow-hidden">
-          <WidgetPreview />
+          {/* Preview canvas */}
+          <div className="flex-1 px-4 sm:px-6 pb-6 lg:pb-8 overflow-hidden">
+            <div className="h-full flex flex-col bg-white border border-slate-100 rounded-xl">
+              <WidgetPreview />
+            </div>
+          </div>
         </div>
       </div>
-
     </div>
   );
 }

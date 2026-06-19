@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Mail, ArrowRight, Zap, RefreshCw, CheckCircle } from "lucide-react";
+import { X, Mail, Zap, ArrowRight, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
 
 /* ── Types ── */
 type ModalStep = "email" | "otp" | "success";
-const OTP_LENGTH   = 6;
-const RESEND_WAIT  = 60; // seconds
+const OTP_LENGTH  = 6;
+const RESEND_WAIT = 60; // seconds
 
 /* ── Google icon ── */
 function GoogleIcon() {
@@ -69,15 +69,16 @@ function OtpInput({ value, onChange }: { value: string[]; onChange: (v: string[]
           onKeyDown={(e) => onKey(e, i)}
           onPaste={(e) => onPaste(e, i)}
           className={cn(
-            "w-10 h-12 sm:w-12 sm:h-14 text-center text-lg font-bold rounded-lg outline-none transition-all duration-150",
+            "w-10 h-12 sm:w-12 sm:h-14 text-center text-lg font-bold rounded-xl outline-none transition-all duration-150",
+            "focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
             value[i]
-              ? "text-[#00f2ff] ring-1 ring-[rgba(0,242,255,0.6)]"
-              : "text-[#94a3b8] focus:ring-1 focus:ring-[rgba(0,242,255,0.4)]"
+              ? "text-slate-900 border-blue-400 bg-blue-50/50"
+              : "text-slate-400 border-slate-200 bg-slate-50"
           )}
           style={{
-            background: value[i] ? "rgba(0,242,255,0.08)" : "rgba(255,255,255,0.04)",
-            border:     value[i] ? "1px solid rgba(0,242,255,0.35)" : "1px solid rgba(255,255,255,0.1)",
-            caretColor: "#00f2ff",
+            border: value[i] ? "1.5px solid #93c5fd" : "1px solid #e2e8f0",
+            background: value[i] ? "rgba(239,246,255,0.6)" : "#f8fafc",
+            caretColor: "#3b82f6",
           }}
         />
       ))}
@@ -88,23 +89,22 @@ function OtpInput({ value, onChange }: { value: string[]; onChange: (v: string[]
 /* ── Animation variants ── */
 const backdropV = { hidden: { opacity: 0 }, visible: { opacity: 1 }, exit: { opacity: 0 } };
 const modalV = {
-  hidden:  { opacity: 0, scale: 0.88, y: 24 },
-  visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring" as const, stiffness: 340, damping: 28 } },
-  exit:    { opacity: 0, scale: 0.92, y: 16, transition: { duration: 0.18 } },
+  hidden:  { opacity: 0, scale: 0.92, y: 20 },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring" as const, stiffness: 340, damping: 30 } },
+  exit:    { opacity: 0, scale: 0.95, y: 12, transition: { duration: 0.18 } },
 };
 const stepV = {
-  enter:  (d: number) => ({ opacity: 0, x: d > 0 ? 40 : -40 }),
-  center: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 300, damping: 28 } },
-  exit:   (d: number) => ({ opacity: 0, x: d > 0 ? -40 : 40, transition: { duration: 0.15 } }),
+  enter:  { opacity: 0, y: 12 },
+  center: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" as const } },
+  exit:   { opacity: 0, y: -8, transition: { duration: 0.15 } },
 };
 
 /* ── Component ── */
 export function AuthModal() {
-  const { modalOpen, closeModal } = useAuthStore();
+  const { authModalState, closeAuthModal, closeModal } = useAuthStore();
   const router = useRouter();
 
   const [step,        setStep]       = useState<ModalStep>("email");
-  const [direction,   setDirection]  = useState(1);
   const [email,       setEmail]      = useState("");
   const [emailError,  setEmailError] = useState("");
   const [otp,         setOtp]        = useState<string[]>(Array(OTP_LENGTH).fill(""));
@@ -114,15 +114,17 @@ export function AuthModal() {
   const [emailDetail,  setEmailDetail]  = useState("");
   const [otpDetail,    setOtpDetail]    = useState("");
 
-  /* Reset on open */
+  const isOpen = authModalState !== "CLOSED";
+
+  /* Reset on open — also respects initial step */
   useEffect(() => {
-    if (modalOpen) {
-      setStep("email"); setDirection(1);
+    if (isOpen) {
+      setStep(authModalState === "VERIFY" ? "otp" : "email");
       setEmail(""); setEmailError(""); setEmailDetail("");
       setOtp(Array(OTP_LENGTH).fill("")); setOtpError(""); setOtpDetail("");
       setLoading(false); setResendTimer(0);
     }
-  }, [modalOpen]);
+  }, [isOpen, authModalState]);
 
   /* Escape to close */
   useEffect(() => {
@@ -157,7 +159,6 @@ export function AuthModal() {
         return;
       }
       setEmailDetail("");
-      setDirection(1);
       setStep("otp");
       setResendTimer(RESEND_WAIT);
     } catch {
@@ -179,7 +180,7 @@ export function AuthModal() {
         return;
       }
       setStep("success");
-      setTimeout(() => { router.push("/dashboard"); router.refresh(); closeModal(); }, 1400);
+      setTimeout(() => { router.push("/dashboard"); router.refresh(); closeModal(); }, 2000);
     } catch {
       setOtpError("Verification failed. Please try again.");
     } finally {
@@ -214,200 +215,213 @@ export function AuthModal() {
 
   return (
     <AnimatePresence>
-      {modalOpen && (
-        <motion.div
-          key="backdrop"
-          variants={backdropV}
-          initial="hidden" animate="visible" exit="exit"
-          transition={{ duration: 0.22 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
-          onClick={(e) => e.target === e.currentTarget && closeModal()}
-        >
+      {isOpen && (
+        <>
+          {/* ── Crisp dark backdrop (no blur — dashboard blur-sm handles that) ── */}
+          <motion.div
+            key="backdrop"
+            variants={backdropV}
+            initial="hidden" animate="visible" exit="exit"
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[100]"
+            style={{ background: "rgba(15,23,42,0.55)" }}
+            onClick={(e) => e.target === e.currentTarget && closeModal()}
+          />
+
+          {/* ── Foreground modal portal (crisp, no blur) ── */}
           <motion.div
             key="modal"
             variants={modalV}
             initial="hidden" animate="visible" exit="exit"
-            className="relative w-full max-w-md rounded-2xl overflow-hidden"
-            style={{
-              background: "linear-gradient(145deg, rgba(10,10,18,0.98), rgba(5,5,12,0.99))",
-              border:     "1px solid rgba(0,242,255,0.18)",
-              boxShadow:  "0 0 0 1px rgba(0,242,255,0.06), 0 0 60px rgba(0,242,255,0.08), 0 32px 80px rgba(0,0,0,0.7)",
-            }}
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[110] w-full max-w-md"
           >
-            {/* Grid texture */}
-            <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
-              style={{ backgroundImage: "linear-gradient(rgba(0,242,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,242,255,1) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+            {/* ── Premium White Card ── */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl p-10 relative overflow-hidden">
 
-            {/* Top glow bar */}
-            <div className="absolute top-0 left-0 right-0 h-px"
-              style={{ background: "linear-gradient(90deg, transparent, rgba(0,242,255,0.6), rgba(168,85,247,0.6), transparent)" }} />
-
-            {/* Close */}
-            <button onClick={closeModal}
-              className="absolute top-4 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-lg text-[#64748b] hover:text-[#94a3b8] transition-all hover:bg-white/[0.06]"
-              style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-              <X size={15} />
-            </button>
-
-            {/* Header */}
-            <div className="px-8 pt-8 pb-6 text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4"
-                style={{ background: "linear-gradient(135deg, rgba(0,242,255,0.15), rgba(168,85,247,0.15))", border: "1px solid rgba(0,242,255,0.25)", boxShadow: "0 0 24px rgba(0,242,255,0.12)" }}>
-                <Zap size={22} className="text-[#00f2ff]" />
+              {/* ── Header ── */}
+              <div className="flex flex-col items-center gap-3 mb-8">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/20">
+                  <Zap size={20} className="text-white" />
+                </div>
+                <div className="text-center">
+                  <h2 className="text-slate-900 font-extrabold text-2xl tracking-tight">
+                    {step === "success" ? "Welcome aboard!" : "CyberAgent Studio"}
+                  </h2>
+                  <p className="text-slate-500 text-sm mt-1">
+                    {step === "email"   && "Sign in or create an account to get started."}
+                    {step === "otp"     && <>Verify your email</>}
+                    {step === "success" && "Redirecting to your dashboard…"}
+                  </p>
+                </div>
               </div>
-              <h2 className="text-[20px] font-bold text-[#e2e8f0] tracking-tight">
-                {step === "success" ? "Welcome aboard!" : "CyberAgent Studio"}
-              </h2>
-              <p className="text-[13px] text-[#64748b] mt-1.5">
-                {step === "email"   && "Sign in or create an account to get started."}
-                {step === "otp"     && <>Code sent to <span className="text-[#00f2ff]">{email}</span></>}
-                {step === "success" && "Redirecting to your dashboard…"}
-              </p>
-            </div>
 
-            {/* Step content */}
-            <div className="relative overflow-hidden px-8 pb-8" style={{ minHeight: 260 }}>
-              <AnimatePresence mode="wait" custom={direction}>
-
-                {/* ── EMAIL STEP ── */}
-                {step === "email" && (
-                  <motion.div key="email" custom={direction} variants={stepV} initial="enter" animate="center" exit="exit" className="space-y-4">
-
-                    {/* Google */}
-                    <button
-                      onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-                      disabled={loading}
-                      className="w-full flex items-center justify-center gap-3 py-3 rounded-xl text-[14px] font-semibold text-[#e2e8f0] transition-all hover:bg-white/[0.07] active:scale-[0.98] disabled:opacity-60"
-                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)" }}
+              {/* ── Step Content ── */}
+              <div className="relative min-h-[220px]">
+                <AnimatePresence mode="wait">
+                  {/* ══════ EMAIL STEP ══════ */}
+                  {step === "email" && (
+                    <motion.div
+                      key="email"
+                      variants={stepV}
+                      initial="enter" animate="center" exit="exit"
+                      className="space-y-4"
                     >
-                      <GoogleIcon /> Continue with Google
-                    </button>
+                      {/* Google button */}
+                      <button
+                        onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-3 py-3 rounded-xl text-sm font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-60"
+                      >
+                        <GoogleIcon /> Continue with Google
+                      </button>
 
-                    {/* Divider */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-px bg-white/[0.07]" />
-                      <span className="text-[11px] text-[#334155] uppercase tracking-widest">or email</span>
-                      <div className="flex-1 h-px bg-white/[0.07]" />
-                    </div>
-
-                    {/* Email field */}
-                    <div className="space-y-1.5">
-                      <div className="relative">
-                        <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#334155]" />
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
-                          onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
-                          placeholder="Enter your email address"
-                          className="w-full pl-9 pr-4 py-3 rounded-xl text-[13px] text-[#e2e8f0] outline-none transition-all placeholder:text-[#334155] focus:ring-1 focus:ring-[rgba(0,242,255,0.4)]"
-                          style={{ background: "rgba(255,255,255,0.04)", border: emailError ? "1px solid rgba(239,68,68,0.5)" : "1px solid rgba(255,255,255,0.09)" }}
-                        />
+                      {/* Divider */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-px bg-slate-200" />
+                        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">or email</span>
+                        <div className="flex-1 h-px bg-slate-200" />
                       </div>
-                      {emailError && (
-                        <div className="pl-1 space-y-0.5">
-                          <p className="text-[11px] text-red-400">{emailError}</p>
-                          {emailDetail && <p className="text-[10px] text-[#475569] font-mono leading-snug">{emailDetail}</p>}
+
+                      {/* Email field */}
+                      <div className="space-y-1.5">
+                        <div className="relative">
+                          <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+                            onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
+                            placeholder="your@email.com"
+                            className={cn(
+                              "w-full pl-10 pr-4 py-3 rounded-xl text-sm text-slate-900 outline-none transition-all",
+                              "bg-slate-50 border placeholder:text-slate-400",
+                              "focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                              emailError ? "border-red-300 focus:ring-red-400" : "border-slate-200"
+                            )}
+                          />
+                        </div>
+                        {emailError && (
+                          <div className="pl-1 space-y-0.5">
+                            <p className="text-xs text-red-500">{emailError}</p>
+                            {emailDetail && <p className="text-[10px] text-slate-400 font-mono leading-snug">{emailDetail}</p>}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Send OTP */}
+                      <button
+                        onClick={handleSendOtp}
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60 bg-blue-600 hover:bg-blue-700 shadow-sm shadow-blue-500/20"
+                      >
+                        {loading ? (
+                          <RefreshCw size={15} className="animate-spin" />
+                        ) : (
+                          <><ArrowRight size={15} />Send Verification Code</>
+                        )}
+                      </button>
+
+                      <p className="text-center text-[11px] text-slate-400">
+                        By continuing you agree to our{" "}
+                        <span className="text-slate-500 hover:text-slate-700 cursor-pointer transition-colors font-medium">Terms of Service</span>
+                      </p>
+                    </motion.div>
+                  )}
+
+                  {/* ══════ OTP STEP ══════ */}
+                  {step === "otp" && (
+                    <motion.div
+                      key="otp"
+                      variants={stepV}
+                      initial="enter" animate="center" exit="exit"
+                      className="space-y-5"
+                    >
+                      {/* Email display */}
+                      <div className="text-center">
+                        <p className="text-sm text-slate-700 font-medium">
+                          Verification code sent to:
+                        </p>
+                        <p className="text-sm text-blue-600 font-semibold mt-0.5">
+                          {email}
+                        </p>
+                      </div>
+
+                      {/* OTP Input */}
+                      <OtpInput value={otp} onChange={setOtp} />
+
+                      {/* Spam check tip */}
+                      <div className="flex items-start gap-2 px-1">
+                        <AlertCircle size={13} className="text-slate-400 mt-0.5 shrink-0" />
+                        <p className="text-slate-500 text-xs italic leading-relaxed">
+                          Didn't receive the code? Please check your Spam or Junk folder as well.
+                        </p>
+                      </div>
+
+                      {otpError && (
+                        <div className="text-center space-y-0.5">
+                          <p className="text-xs text-red-500">{otpError}</p>
+                          {otpDetail && <p className="text-[10px] text-slate-400 font-mono leading-snug">{otpDetail}</p>}
                         </div>
                       )}
-                    </div>
 
-                    {/* Send OTP */}
-                    <button
-                      onClick={handleSendOtp}
-                      disabled={loading}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[14px] font-bold tracking-wide transition-all active:scale-[0.98] disabled:opacity-70"
-                      style={{
-                        background: loading ? "rgba(0,242,255,0.12)" : "linear-gradient(90deg, rgba(0,242,255,0.2), rgba(168,85,247,0.2))",
-                        border:     "1px solid rgba(0,242,255,0.3)",
-                        color:      "#00f2ff",
-                        boxShadow:  loading ? "none" : "0 0 24px rgba(0,242,255,0.12)",
-                      }}
-                    >
-                      {loading ? <RefreshCw size={15} className="animate-spin" /> : <><ArrowRight size={15} />Send Code</>}
-                    </button>
-
-                    <p className="text-center text-[11px] text-[#334155]">
-                      By continuing you agree to our{" "}
-                      <span className="text-[#64748b] hover:text-[#94a3b8] cursor-pointer transition-colors">Terms of Service</span>
-                    </p>
-                  </motion.div>
-                )}
-
-                {/* ── OTP STEP ── */}
-                {step === "otp" && (
-                  <motion.div key="otp" custom={direction} variants={stepV} initial="enter" animate="center" exit="exit" className="space-y-6">
-
-                    <OtpInput value={otp} onChange={setOtp} />
-
-                    {otpError && (
-                      <div className="text-center space-y-0.5">
-                        <p className="text-[11px] text-red-400">{otpError}</p>
-                        {otpDetail && <p className="text-[10px] text-[#475569] font-mono leading-snug">{otpDetail}</p>}
-                      </div>
-                    )}
-
-                    {/* Verify */}
-                    <button
-                      onClick={handleVerify}
-                      disabled={loading || otp.join("").length < OTP_LENGTH}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[14px] font-bold tracking-wide transition-all active:scale-[0.98] disabled:opacity-50"
-                      style={{
-                        background: otp.join("").length === OTP_LENGTH
-                          ? "linear-gradient(90deg, rgba(0,242,255,0.25), rgba(168,85,247,0.25))"
-                          : "rgba(255,255,255,0.04)",
-                        border: otp.join("").length === OTP_LENGTH
-                          ? "1px solid rgba(0,242,255,0.35)"
-                          : "1px solid rgba(255,255,255,0.08)",
-                        color:     otp.join("").length === OTP_LENGTH ? "#00f2ff" : "#334155",
-                        boxShadow: otp.join("").length === OTP_LENGTH ? "0 0 20px rgba(0,242,255,0.1)" : "none",
-                      }}
-                    >
-                      {loading ? <RefreshCw size={15} className="animate-spin" /> : "Verify & Sign In"}
-                    </button>
-
-                    {/* Controls */}
-                    <div className="flex items-center justify-between text-[12px]">
+                      {/* Verify */}
                       <button
-                        onClick={() => { setDirection(-1); setStep("email"); setOtp(Array(OTP_LENGTH).fill("")); setOtpError(""); }}
-                        className="text-[#64748b] hover:text-[#94a3b8] transition-colors"
+                        onClick={handleVerify}
+                        disabled={loading || otp.join("").length < OTP_LENGTH}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 bg-blue-600 hover:bg-blue-700 shadow-sm shadow-blue-500/20"
                       >
-                        ← Change email
+                        {loading ? (
+                          <RefreshCw size={15} className="animate-spin" />
+                        ) : (
+                          "Verify & Sign In"
+                        )}
                       </button>
-                      <button
-                        onClick={handleResend}
-                        disabled={resendTimer > 0 || loading}
-                        className="transition-colors disabled:opacity-50"
-                        style={{ color: resendTimer > 0 ? "#64748b" : "#00f2ff" }}
-                      >
-                        {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
 
-                {/* ── SUCCESS STEP ── */}
-                {step === "success" && (
-                  <motion.div key="success" custom={direction} variants={stepV} initial="enter" animate="center" exit="exit"
-                    className="flex flex-col items-center justify-center gap-4 py-8">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring" as const, stiffness: 400, damping: 20, delay: 0.1 }}
-                    >
-                      <div className="w-16 h-16 rounded-full flex items-center justify-center"
-                        style={{ background: "rgba(0,255,148,0.1)", border: "2px solid rgba(0,255,148,0.35)", boxShadow: "0 0 30px rgba(0,255,148,0.2)" }}>
-                        <CheckCircle size={32} className="text-[#00ff94]" />
+                      {/* Controls */}
+                      <div className="flex items-center justify-between text-xs">
+                        <button
+                          onClick={() => { setStep("email"); setOtp(Array(OTP_LENGTH).fill("")); setOtpError(""); }}
+                          className="text-slate-500 hover:text-slate-700 transition-colors font-medium"
+                        >
+                          ← Change email
+                        </button>
+                        <button
+                          onClick={handleResend}
+                          disabled={resendTimer > 0 || loading}
+                          className="font-medium transition-colors disabled:opacity-50"
+                          style={{ color: resendTimer > 0 ? "#94a3b8" : "#3b82f6" }}
+                        >
+                          {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend code"}
+                        </button>
                       </div>
                     </motion.div>
-                    <p className="text-[14px] text-[#64748b]">Signing you in…</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  )}
+
+                  {/* ══════ SUCCESS STEP ══════ */}
+                  {step === "success" && (
+                    <motion.div
+                      key="success"
+                      variants={stepV}
+                      initial="enter" animate="center" exit="exit"
+                      className="flex flex-col items-center justify-center gap-4 py-6"
+                    >
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring" as const, stiffness: 400, damping: 20, delay: 0.1 }}
+                      >
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center bg-green-50 border-2 border-green-200 shadow-sm">
+                          <CheckCircle size={32} className="text-green-500" />
+                        </div>
+                      </motion.div>
+                      <p className="text-sm font-semibold text-green-600">✔ Success! Redirecting to dashboard...</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </motion.div>
-        </motion.div>
+        </>
       )}
     </AnimatePresence>
   );

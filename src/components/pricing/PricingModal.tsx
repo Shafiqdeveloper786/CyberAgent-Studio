@@ -9,12 +9,12 @@ import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
 
 /* ════════════════════════════════════════════════
-   Plan data
+    Plan data — adjusted accents for light theme
 ════════════════════════════════════════════════ */
 interface Plan {
   id: string; name: string; monthlyPrice: number; tagline: string;
   icon: React.FC<{ size?: number; className?: string; style?: React.CSSProperties }>;
-  accent: string; glow: string; desc: string;
+  accent: string; desc: string;
   features: string[]; cta: string; popular: boolean;
 }
 
@@ -23,7 +23,7 @@ const PLANS: Plan[] = [
     id: "basic", name: "Basic", monthlyPrice: 15,
     tagline: "Perfect for solo builders",
     icon: Zap,
-    accent: "#64748b", glow: "rgba(100,116,139,0.2)",
+    accent: "#64748b",
     desc: "Get started with core AI chat features.",
     features: [
       "1 Chatbot Agent",
@@ -39,12 +39,12 @@ const PLANS: Plan[] = [
     id: "pro", name: "Pro", monthlyPrice: 39,
     tagline: "For growing businesses",
     icon: TrendingUp,
-    accent: "#00f2ff", glow: "rgba(0,242,255,0.25)",
+    accent: "#2563eb",
     desc: "Real power, real scale, real results.",
     features: [
       "3 Chatbot Agents",
       "5,000 Messages / month",
-      "No \"Powered by\" Branding",
+      'No "Powered by" Branding',
       "Lead Generation Forms",
       "All UI Themes + Custom Colors",
       "Priority Support",
@@ -56,7 +56,7 @@ const PLANS: Plan[] = [
     id: "enterprise", name: "Enterprise", monthlyPrice: 79,
     tagline: "Unlimited scale",
     icon: Cpu,
-    accent: "#a855f7", glow: "rgba(168,85,247,0.25)",
+    accent: "#7c3aed",
     desc: "Unlimited agents. Full control.",
     features: [
       "Unlimited Agents",
@@ -71,9 +71,7 @@ const PLANS: Plan[] = [
   },
 ];
 
-/* ════════════════════════════════════════════════
-   Animation variants
-════════════════════════════════════════════════ */
+/* Animation variants */
 const backdropV = {
   hidden:  { opacity: 0 },
   visible: { opacity: 1 },
@@ -92,9 +90,7 @@ const cardV = {
   }),
 };
 
-/* ════════════════════════════════════════════════
-   Plan card — fires modal, no routing
-════════════════════════════════════════════════ */
+/* Plan card — light theme */
 function PlanCard({ plan, annual, index, onActivate }: {
   plan: Plan; annual: boolean; index: number;
   onActivate: () => void;
@@ -105,84 +101,68 @@ function PlanCard({ plan, annual, index, onActivate }: {
   return (
     <motion.div
       custom={index} variants={cardV} initial="hidden" animate="visible"
-      className={cn("relative flex flex-col rounded-2xl p-6 transition-all duration-200 overflow-hidden", plan.popular && "md:-translate-y-3 md:scale-[1.03]")}
-      style={{
-        background: plan.popular
-          ? `linear-gradient(160deg,${plan.glow.replace("0.25","0.08")} 0%,rgba(0,0,0,0.7) 60%)`
-          : "rgba(255,255,255,0.025)",
-        border:     plan.popular ? `1.5px solid ${plan.accent}45` : `1px solid rgba(255,255,255,0.08)`,
-        boxShadow:  plan.popular ? `0 0 40px ${plan.glow}, 0 20px 60px rgba(0,0,0,0.4)` : "none",
-        backdropFilter: "blur(8px)",
-      }}
+      className={cn(
+        "relative flex flex-col rounded-2xl p-6 transition-all duration-200 bg-white border",
+        plan.popular
+          ? "border-blue-600 ring-2 ring-blue-600/20 shadow-lg md:-translate-y-3 md:scale-[1.03]"
+          : "border-slate-200 shadow-sm hover:border-slate-300"
+      )}
     >
-      {/* Top gradient line */}
-      <div className="absolute top-0 left-0 right-0 h-px"
-        style={{ background: `linear-gradient(90deg,transparent,${plan.accent},transparent)` }} />
-
       {/* Popular badge */}
       {plan.popular && (
-        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap"
-          style={{ background: "linear-gradient(90deg,rgba(0,242,255,0.25),rgba(168,85,247,0.25))", border: "1px solid rgba(0,242,255,0.4)", color: "#00f2ff", boxShadow: "0 0 20px rgba(0,242,255,0.2)" }}>
+        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap bg-blue-600 text-white shadow-sm">
           <Sparkles size={9} /> MOST POPULAR
         </div>
       )}
 
       {/* Icon + name */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: `${plan.accent}15`, border: `1px solid ${plan.accent}30`, boxShadow: `0 0 12px ${plan.glow.replace("0.25","0.15")}` }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-slate-50 border border-slate-200">
           <Icon size={18} style={{ color: plan.accent }} />
         </div>
         <div>
-          <p className="text-[16px] font-black" style={{
-            background: plan.popular ? `linear-gradient(90deg,${plan.accent},#a855f7)` : "none",
-            WebkitBackgroundClip: plan.popular ? "text" : "unset",
-            WebkitTextFillColor:  plan.popular ? "transparent" : "#e2e8f0",
-            color: plan.popular ? undefined : "#e2e8f0",
-          }}>{plan.name}</p>
-          <p className="text-[11px] text-[#64748b] leading-snug">{plan.tagline}</p>
+          <p className={cn("text-[16px] font-black", plan.popular ? "text-blue-600" : "text-slate-900")}>{plan.name}</p>
+          <p className="text-[11px] text-slate-500 leading-snug">{plan.tagline}</p>
         </div>
       </div>
 
       {/* Price */}
       <div className="mb-5">
         <div className="flex items-end gap-1">
-          <span className="text-[40px] font-black leading-none tracking-tight"
-            style={{ color: plan.popular ? plan.accent : "#e2e8f0", textShadow: plan.popular ? `0 0 20px ${plan.glow}` : "none" }}>
-            ${price}
-          </span>
+          <span className="text-[40px] font-black leading-none tracking-tight text-slate-900">${price}</span>
           <div className="mb-2 flex flex-col">
-            <span className="text-[12px] text-[#64748b]">/mo</span>
-            {annual && <span className="text-[10px] text-[#00ff94]">20% off</span>}
+            <span className="text-[12px] text-slate-500">/mo</span>
+            {annual && <span className="text-[10px] text-emerald-600 font-semibold">20% off</span>}
           </div>
         </div>
-        {annual && <p className="text-[11px] text-[#334155] mt-0.5">Billed annually (${price * 12}/yr)</p>}
+        {annual && <p className="text-[11px] text-slate-400 mt-0.5">Billed annually (${price * 12}/yr)</p>}
       </div>
 
       {/* Divider */}
-      <div className="mb-5 h-px" style={{ background: `linear-gradient(90deg,${plan.accent}30,transparent)` }} />
+      <div className="mb-5 h-px bg-slate-100" />
 
       {/* Features */}
       <ul className="flex flex-col gap-2.5 flex-1 mb-6">
         {plan.features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-[12px] text-[#94a3b8]">
+          <li key={f} className="flex items-start gap-2 text-[12px] text-slate-600">
             <Check size={12} className="mt-0.5 shrink-0" style={{ color: plan.accent }} />
             {f}
           </li>
         ))}
       </ul>
 
-      {/* CTA — opens modal, no routing */}
+      {/* CTA */}
       <button
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onActivate(); }}
-        className="w-full py-3 rounded-xl text-[13px] font-black tracking-wide transition-all duration-150 active:scale-[0.97] hover:opacity-90"
-        style={plan.popular
-          ? { background: `linear-gradient(90deg,${plan.accent}28,${plan.accent}15)`, border: `1px solid ${plan.accent}45`, color: plan.accent, boxShadow: `0 0 22px ${plan.glow.replace("0.25","0.2")}` }
-          : plan.id === "enterprise"
-          ? { background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.3)", color: "#a855f7" }
-          : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", color: "#94a3b8" }
-        }
+        className={cn(
+          "w-full py-3 rounded-xl text-[13px] font-bold tracking-wide transition-all duration-150 active:scale-[0.97]",
+          plan.popular
+            ? "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+            : plan.id === "enterprise"
+            ? "bg-purple-600 text-white hover:bg-purple-700 shadow-sm"
+            : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+        )}
       >
         {plan.cta}
       </button>
@@ -191,14 +171,13 @@ function PlanCard({ plan, annual, index, onActivate }: {
 }
 
 /* ════════════════════════════════════════════════
-   Main Modal
+    Main Modal — Light Theme
 ════════════════════════════════════════════════ */
 export function PricingModal() {
   const { pricingOpen, closePricing } = useAuthStore();
-  const [annual,                 setAnnual]                 = useState(false);
+  const [annual, setAnnual] = useState(false);
   const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
 
-  /* Escape key — close payment modal first, then pricing modal */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -221,79 +200,59 @@ export function PricingModal() {
           key="pricing-backdrop"
           variants={backdropV} initial="hidden" animate="visible" exit="exit"
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
-          style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(12px)" }}
+          style={{ background: "rgba(15,23,42,0.5)", backdropFilter: "blur(8px)" }}
           onClick={(e) => e.target === e.currentTarget && handleClose()}
         >
           <motion.div
             key="pricing-modal"
             variants={modalV} initial="hidden" animate="visible" exit="exit"
-            className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl"
-            style={{
-              background: "linear-gradient(160deg,rgba(8,8,18,0.99) 0%,rgba(5,5,12,1) 100%)",
-              border:     "1px solid rgba(255,255,255,0.09)",
-              boxShadow:  "0 0 0 1px rgba(0,242,255,0.04), 0 0 80px rgba(0,242,255,0.06), 0 40px 100px rgba(0,0,0,0.7)",
-            }}
+            className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl bg-white border border-slate-200 shadow-2xl"
           >
-            {/* Rainbow top line */}
-            <div className="absolute top-0 left-0 right-0 h-px rounded-t-2xl"
-              style={{ background: "linear-gradient(90deg,transparent 0%,rgba(0,242,255,0.7) 35%,rgba(168,85,247,0.7) 65%,transparent 100%)" }} />
-
-            {/* Cyber grid texture */}
-            <div className="absolute inset-0 rounded-2xl pointer-events-none opacity-[0.02]"
-              style={{ backgroundImage: "linear-gradient(rgba(0,242,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(0,242,255,1) 1px,transparent 1px)", backgroundSize: "40px 40px" }} />
-
             {/* Close */}
             <button
               type="button"
               onClick={handleClose}
-              className="absolute top-4 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-lg text-[#64748b] hover:text-[#94a3b8] hover:bg-white/[0.06] transition-all"
-              style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+              className="absolute top-4 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all border border-slate-200 bg-white"
             >
               <X size={15} />
             </button>
 
             {/* Header */}
             <div className="px-6 sm:px-10 pt-8 pb-6 text-center">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold mb-4"
-                style={{ background: "rgba(0,242,255,0.08)", border: "1px solid rgba(0,242,255,0.2)", color: "#00f2ff" }}>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold mb-4 bg-blue-50 text-blue-600 border border-blue-200">
                 <Sparkles size={10} /> Transparent pricing — cancel anytime
               </div>
 
-              <h2 className="text-[24px] sm:text-[28px] font-black text-[#e2e8f0] tracking-tight">
-                Choose Your{" "}
-                <span style={{ background: "linear-gradient(90deg,#00f2ff,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                  Plan
-                </span>
+              <h2 className="text-[24px] sm:text-[28px] font-black text-slate-900 tracking-tight">
+                Choose Your <span className="text-blue-600">Plan</span>
               </h2>
-              <p className="text-[13px] text-[#64748b] mt-2">Scale your AI chatbot business. Upgrade or cancel anytime.</p>
+              <p className="text-[13px] text-slate-500 mt-2">Scale your AI chatbot business. Upgrade or cancel anytime.</p>
 
-              {/* Billing toggle */}
+              {/* Billing toggle — light */}
               <div className="flex items-center justify-center gap-3 mt-5">
-                <span className={cn("text-[13px] font-medium transition-colors", !annual ? "text-[#e2e8f0]" : "text-[#334155]")}>Monthly</span>
+                <span className={cn("text-[13px] font-medium transition-colors", !annual ? "text-slate-900" : "text-slate-400")}>Monthly</span>
                 <button
                   type="button"
                   onClick={() => setAnnual((a) => !a)}
-                  className="relative w-11 h-6 rounded-full transition-all duration-200"
+                  className="relative w-11 h-6 rounded-full transition-all duration-200 bg-white border"
                   style={{
-                    background: annual ? "linear-gradient(90deg,rgba(0,242,255,0.35),rgba(168,85,247,0.35))" : "rgba(255,255,255,0.08)",
-                    border:     annual ? "1px solid rgba(0,242,255,0.3)" : "1px solid rgba(255,255,255,0.1)",
+                    background: annual ? "#2563eb" : "#e2e8f0",
+                    borderColor: annual ? "#2563eb" : "#cbd5e1",
                   }}
                 >
                   <motion.div
                     animate={{ x: annual ? 20 : 2 }}
                     transition={{ type: "spring" as const, stiffness: 400, damping: 28 }}
-                    className="absolute top-[3px] w-4 h-4 rounded-full"
-                    style={{ background: annual ? "#00f2ff" : "#64748b", boxShadow: annual ? "0 0 8px rgba(0,242,255,0.6)" : "none" }}
+                    className="absolute top-[3px] w-4 h-4 rounded-full bg-white shadow-sm"
                   />
                 </button>
                 <div className="flex items-center gap-2">
-                  <span className={cn("text-[13px] font-medium transition-colors", annual ? "text-[#e2e8f0]" : "text-[#334155]")}>Annual</span>
+                  <span className={cn("text-[13px] font-medium transition-colors", annual ? "text-slate-900" : "text-slate-400")}>Annual</span>
                   {annual && (
                     <motion.span
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                      style={{ background: "rgba(0,255,148,0.1)", border: "1px solid rgba(0,255,148,0.25)", color: "#00ff94" }}
+                      className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200"
                     >
                       SAVE 20%
                     </motion.span>
@@ -302,7 +261,7 @@ export function PricingModal() {
               </div>
             </div>
 
-            {/* Plan cards — any CTA opens the shared payment modal */}
+            {/* Plan cards */}
             <div className="px-4 sm:px-6 pb-8 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 md:items-start">
               {PLANS.map((plan, i) => (
                 <PlanCard
@@ -316,153 +275,90 @@ export function PricingModal() {
             </div>
 
             <div className="px-6 sm:px-10 pb-6 text-center">
-              <p className="text-[11px] text-[#334155]">
+              <p className="text-[11px] text-slate-400">
                 All plans include a 14-day free trial.{" "}
-                <span className="text-[#64748b] hover:text-[#94a3b8] cursor-pointer transition-colors">View full feature comparison →</span>
+                <span className="text-slate-500 hover:text-slate-700 cursor-pointer transition-colors font-medium">View full feature comparison →</span>
               </p>
             </div>
           </motion.div>
         </motion.div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          Manual payment modal — z-[110], pure state
-      ══════════════════════════════════════════════ */}
+      {/* Manual Payment Modal — Light */}
       {showManualPaymentModal && (
-        <div className="fixed inset-0 bg-black/88 backdrop-blur-xl z-[110] flex items-center justify-center p-4">
-          <div
-            className="relative max-w-md w-full p-6 sm:p-8 rounded-2xl overflow-hidden text-white"
-            style={{
-              background: "rgba(8,8,10,0.97)",
-              border:     "1px solid rgba(0,242,255,0.4)",
-              boxShadow:  "0 0 50px rgba(0,242,255,0.15), 0 0 100px rgba(0,0,0,0.8)",
-            }}
-          >
-            {/* Top prismatic bar */}
-            <div className="absolute top-0 left-0 right-0 h-[2px]"
-              style={{ background: "linear-gradient(90deg,#f59e0b,#00f2ff 50%,#a855f7)" }} />
-
-            {/* Corner brackets */}
-            <div className="absolute top-3 left-3 w-4 h-4 pointer-events-none"
-              style={{ borderTop: "1.5px solid rgba(0,242,255,0.45)", borderLeft: "1.5px solid rgba(0,242,255,0.45)" }} />
-            <div className="absolute top-3 right-10 w-4 h-4 pointer-events-none"
-              style={{ borderTop: "1.5px solid rgba(0,242,255,0.45)", borderRight: "1.5px solid rgba(0,242,255,0.45)" }} />
-            <div className="absolute bottom-3 left-3 w-4 h-4 pointer-events-none"
-              style={{ borderBottom: "1.5px solid rgba(168,85,247,0.4)", borderLeft: "1.5px solid rgba(168,85,247,0.4)" }} />
-            <div className="absolute bottom-3 right-3 w-4 h-4 pointer-events-none"
-              style={{ borderBottom: "1.5px solid rgba(168,85,247,0.4)", borderRight: "1.5px solid rgba(168,85,247,0.4)" }} />
-
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4"
+          style={{ background: "rgba(15,23,42,0.5)", backdropFilter: "blur(8px)" }}>
+          <div className="relative max-w-md w-full p-6 sm:p-8 rounded-2xl bg-white border border-slate-200 shadow-xl">
             {/* Close */}
             <button
               type="button"
               onClick={() => setShowManualPaymentModal(false)}
-              className="absolute top-3.5 right-3.5 w-7 h-7 flex items-center justify-center rounded-lg transition-all"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#475569" }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#94a3b8"; e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#475569"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+              className="absolute top-3.5 right-3.5 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all"
             >
               <X size={13} />
             </button>
 
-            {/* Icon badge */}
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
-              style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.28)", boxShadow: "0 0 20px rgba(245,158,11,0.1)" }}>
-              <span className="text-2xl" style={{ filter: "drop-shadow(0 0 8px rgba(245,158,11,0.7))" }}>⚡</span>
+            {/* Icon */}
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 bg-amber-50 border border-amber-200">
+              <span className="text-2xl">⚡</span>
             </div>
 
-            {/* Heading — gradient text */}
-            <h3
-              className="text-[20px] font-black tracking-tight text-center mb-1.5"
-              style={{
-                background: "linear-gradient(90deg,#ffffff,#a5f3fc,#00f2ff)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+            <h3 className="text-[20px] font-black tracking-tight text-slate-900 text-center mb-1.5">
               Secure Plan Activation
             </h3>
 
-            {/* Subtitle — amber pulse */}
-            <p className="text-[11px] text-amber-400 font-extrabold tracking-widest uppercase text-center animate-pulse mb-4 pb-3"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <p className="text-[11px] text-amber-600 font-bold tracking-widest uppercase text-center animate-pulse mb-4 pb-3 border-b border-slate-200">
               Automated Gateway Nodes Syncing
             </p>
 
-            {/* Body paragraph with accent words */}
-            <p className="text-[13px] text-zinc-300 leading-relaxed mb-5 text-center">
-              Our automated direct-checkout architecture is currently undergoing{" "}
-              <span className="text-cyan-400 font-semibold">beta optimization cycles</span>.
-              Full-scale instant payment{" "}
-              <span className="text-cyan-400 font-semibold">provisioning channels</span>{" "}
-              will be activated deployment-wide shortly.
+            <p className="text-[13px] text-slate-500 leading-relaxed mb-5 text-center">
+              Our automated direct-checkout architecture is currently undergoing
+              beta optimization cycles. Full-scale instant payment
+              provisioning channels will be activated deployment-wide shortly.
             </p>
 
-            {/* Transfer block */}
-            <div className="rounded-xl p-4 mb-4 space-y-3"
-              style={{ background: "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.07)" }}>
-
-              <p className="text-[12px] text-zinc-400 leading-relaxed">
+            <div className="rounded-xl p-4 mb-4 space-y-3 bg-slate-50 border border-slate-200">
+              <p className="text-[12px] text-slate-500 leading-relaxed">
                 To upgrade your account immediately via manual wire processing, please establish
                 direct coordinates with our secure global billing desk:
               </p>
 
-              {/* Payment method tags */}
               <div className="flex flex-wrap gap-2">
                 {[
                   { icon: "⚡", label: "Easypaisa" },
                   { icon: "📱", label: "JazzCash" },
                   { icon: "🏦", label: "Bank Transfer" },
                 ].map(({ icon, label }) => (
-                  <span
-                    key={label}
-                    className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-bold"
-                    style={{
-                      background: "rgba(16,185,129,0.08)",
-                      border:     "1px solid rgba(16,185,129,0.22)",
-                      color:      "#34d399",
-                    }}
-                  >
+                  <span key={label}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
                     {icon} {label}
                   </span>
                 ))}
               </div>
 
-              {/* Email terminal */}
               <div>
                 <div
-                  className="px-4 py-3 rounded-xl font-mono text-xs text-[#00f2ff] text-center break-all select-all font-black tracking-wider cursor-pointer transition-all duration-300"
-                  style={{
-                    background: "rgba(0,0,0,0.8)",
-                    border:     "1px solid #00f2ff",
-                    boxShadow:  "0 0 15px rgba(0,242,255,0.2)",
-                  }}
+                  className="px-4 py-3 rounded-xl font-mono text-xs text-blue-700 text-center break-all select-all font-bold tracking-wider cursor-pointer transition-all bg-white border border-slate-200 hover:bg-blue-50 shadow-sm"
                   onClick={() => navigator.clipboard.writeText("muhammadshafiqchohan12@gmail.com")}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "rgba(0,242,255,0.05)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "rgba(0,0,0,0.8)"; }}
                 >
                   muhammadshafiqchohan12@gmail.com
                 </div>
-                <span className="block text-center text-zinc-500 text-[10px] uppercase tracking-widest mt-1.5 font-bold">
+                <span className="block text-center text-slate-400 text-[10px] uppercase tracking-widest mt-1.5 font-bold">
                   👉 Click to Copy Secure Coordinates
                 </span>
               </div>
             </div>
 
-            <p className="text-[11px] text-zinc-600 italic text-center mb-5">
+            <p className="text-[11px] text-slate-400 italic text-center mb-5">
               Automated checkout nodes will become fully operational in the upcoming patch update.
             </p>
 
-            {/* CTA */}
             <button
               type="button"
               onClick={() => setShowManualPaymentModal(false)}
-              className="w-full text-black font-black uppercase tracking-widest py-3 px-6 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all duration-300 text-xs"
-              style={{
-                background: "linear-gradient(90deg,#06b6d4,#00f2ff)",
-                boxShadow:  "0 4px 20px rgba(0,242,255,0.3)",
-              }}
+              className="w-full text-white font-bold uppercase tracking-widest py-3 px-6 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all bg-blue-600 shadow-sm"
             >
-              Return &amp; Modify Plan
+              Return & Modify Plan
             </button>
           </div>
         </div>

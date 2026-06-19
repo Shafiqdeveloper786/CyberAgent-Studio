@@ -11,25 +11,25 @@
  * This worked when NEXT_PUBLIC_APP_URL was set correctly, but failed in
  * two ways when it was missing or wrong:
  *
- *   1. React Error #418 — hydration mismatch loop:
- *      If the env var resolved to "http://localhost:3000" in the build
- *      environment but the browser was on the Vercel domain, the server
- *      rendered src="http://localhost:3000/embed.js" while the useEffect
- *      tried to correct it. React detected a mismatch between the SSR
- *      HTML and the client VDOM, triggering Error #418 and a re-render
- *      loop via the Script component's internal postMessage mechanism.
+ * 1. React Error #418 — hydration mismatch loop:
+ * If the env var resolved to "http://localhost:3000" in the build
+ * environment but the browser was on the Vercel domain, the server
+ * rendered src="http://localhost:3000/embed.js" while the useEffect
+ * tried to correct it. React detected a mismatch between the SSR
+ * HTML and the client VDOM, triggering Error #418 and a re-render
+ * loop via the Script component's internal postMessage mechanism.
  *
- *   2. GET localhost:3000/embed.js ERR_CONNECTION_REFUSED:
- *      The browser tried to fetch the localhost URL that was baked into
- *      the server-rendered HTML before useEffect could correct it.
+ * 2. GET localhost:3000/embed.js ERR_CONNECTION_REFUSED:
+ * The browser tried to fetch the localhost URL that was baked into
+ * the server-rendered HTML before useEffect could correct it.
  *
  * Solution — decouple completely from the React render tree:
- *   • Both server render and initial client render return null.
- *   • Server emits zero bytes for this component → nothing to hydrate.
- *   • useEffect fires after React hydration is complete and confirmed.
- *   • Script tag is created via raw DOM APIs, invisible to React's
- *     reconciler — no hydration surface, no mismatch possible.
- *   • window.location.origin is read safely (browser-only context).
+ * • Both server render and initial client render return null.
+ * • Server emits zero bytes for this component → nothing to hydrate.
+ * • useEffect fires after React hydration is complete and confirmed.
+ * • Script tag is created via raw DOM APIs, invisible to React's
+ * reconciler — no hydration surface, no mismatch possible.
+ * • window.location.origin is read safely (browser-only context).
  */
 
 import { useEffect, useState } from "react";
@@ -37,7 +37,7 @@ import { useEffect, useState } from "react";
 interface AgentEmbedScriptProps {
   /** MongoDB ObjectId of the agent whose widget to embed */
   agentId: string;
-  /** Hex colour for the widget accent (e.g. "#00f2ff") */
+  /** Hex color for the corporate widget accent (Defaults to Enterprise Blue: "#2563eb") */
   accentColor?: string;
 }
 
@@ -45,7 +45,7 @@ const PRODUCTION_FALLBACK = "https://cyber-agent-studio.vercel.app";
 
 export function AgentEmbedScript({
   agentId,
-  accentColor = "#00f2ff",
+  accentColor = "#2563eb", // Updated to corporate identifier standard blueprint
 }: AgentEmbedScriptProps) {
   /* mounted tracks whether we are in the browser — kept for consumers
      that may inspect the prop, but the render always returns null.      */
@@ -56,13 +56,13 @@ export function AgentEmbedScript({
 
     /* Never inject inside the widget iframe route — the root layout runs for
        /widget/[agentId] too, which would mount a second launcher bubble on top
-       of the chat input.  embed.js also guards via window !== window.top, but
+       of the chat input. embed.js also guards via window !== window.top, but
        skipping the script injection entirely avoids the wasted network request. */
     if (window.location.pathname.startsWith("/widget/")) return;
 
     /* Prevent duplicate injection across HMR reloads or StrictMode
        double-invocations.                                               */
-    if (document.getElementById("cyberagent-universal-script")) return;
+    if (document.getElementById("system-agent-universal-script")) return;
 
     /* Resolve the base URL strictly inside the browser context.
        Prefers the actual runtime origin so custom-domain deployments
@@ -83,18 +83,18 @@ export function AgentEmbedScript({
     /* cache-buster: forces a fresh fetch on every mount so stale cached
        versions of embed.js don't persist across deployments.             */
     const script = document.createElement("script");
-    script.id                                      = "cyberagent-universal-script";
-    script.src                                     = `${baseHost}/embed.js?ts=${Date.now()}`;
-    script.defer                                   = true;
+    script.id              = "system-agent-universal-script";
+    script.src             = `${baseHost}/embed.js?ts=${Date.now()}`;
+    script.defer           = true;
     script.setAttribute("data-agent-id",     agentId);
     script.setAttribute("data-accent-color", accentColor);
 
     document.body.appendChild(script);
-    console.log("[AgentEmbedScript] Injected embed.js from:", baseHost);
+    console.log("[SystemAgentScript] Runtime instance initialized from host:", baseHost);
 
     return () => {
       /* Cleanup on unmount — prevents ghost scripts during HMR */
-      const el = document.getElementById("cyberagent-universal-script");
+      const el = document.getElementById("system-agent-universal-script");
       if (el) el.remove();
     };
   }, [agentId, accentColor]);

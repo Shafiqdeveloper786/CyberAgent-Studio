@@ -34,8 +34,8 @@ interface AgentStoreCtx {
 const DEFAULT_CONFIG: AgentConfig = {
   name:           "Nexa",
   persona:        "Tech Support Expert",
-  accentColor:    "#00f2ff",
-  theme:          "cyberpunk",
+  accentColor:    "#2563eb", // Corporate blue
+  theme:          "corporate-light",
   welcomeMessage: "Hello! I can certainly help you with that. Can you describe the issue?",
 };
 

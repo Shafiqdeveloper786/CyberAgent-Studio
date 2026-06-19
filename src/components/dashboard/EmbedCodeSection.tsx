@@ -6,18 +6,11 @@ import { useAgentStore } from "@/store/agentStore";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <h3
-        className="text-[11px] font-bold tracking-[0.1em] uppercase"
-        style={{
-          background:           "linear-gradient(90deg,#00f2ff,#a855f7)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor:  "transparent",
-        }}
-      >
+    <div className="space-y-1.5">
+      <h3 className="text-[11px] font-bold tracking-[0.06em] uppercase text-slate-700">
         {children}
       </h3>
-      <div style={{ height: 1, background: "linear-gradient(90deg,rgba(0,242,255,0.45),rgba(168,85,247,0.2),transparent)" }} />
+      <div className="h-px bg-slate-100 w-full" />
     </div>
   );
 }
@@ -28,7 +21,8 @@ function buildHtmlSnippet(agentId: string, accentColor: string, origin: string):
   src="${origin}/embed.js"
   id="cyberagent-universal-script"
   data-agent-id="${agentId}"
-  data-accent-color="${accentColor || "#00f2ff"}"
+  data-accent-color="${accentColor || "#2563eb"}"
+  data-theme="corporate-light"
   async>
 </script>`;
 }
@@ -58,22 +52,18 @@ while (true) {
 
 type Tab = "script" | "widget" | "apikey";
 
-function CodeBlock({ code, accent = "#00f2ff", onCopy, copied }: {
-  code: string; accent?: string; onCopy: () => void; copied: boolean;
+function CodeBlock({ code, onCopy, copied }: {
+  code: string; onCopy: () => void; copied: boolean;
 }) {
   return (
-    <div
-      className="relative rounded-xl px-4 py-3 font-mono text-[11px] leading-relaxed overflow-x-auto"
-      style={{ background: "rgba(0,0,0,0.45)", border: `1px solid ${accent}33`, boxShadow: `0 0 20px ${accent}07` }}
-    >
-      <div className="absolute top-0 left-4 right-4 h-px rounded-full"
-        style={{ background: `linear-gradient(90deg,${accent}66,rgba(168,85,247,0.2),transparent)` }} />
-      <pre className="whitespace-pre-wrap break-all pr-8" style={{ color: accent }}>{code}</pre>
-      <button onClick={onCopy}
-        className="absolute top-3 right-3 p-1.5 rounded-lg transition-colors"
-        style={{ background: "rgba(0,0,0,0.5)", color: copied ? "#00ff94" : "#475569" }}
-        title="Copy">
-        {copied ? <Check size={13} /> : <Copy size={13} />}
+    <div className="relative rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 font-mono text-[11px] leading-relaxed overflow-x-auto shadow-inner">
+      <pre className="whitespace-pre-wrap break-all pr-8 text-slate-700">{code}</pre>
+      <button 
+        onClick={onCopy}
+        className="absolute top-2.5 right-2.5 p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 transition-colors shadow-sm"
+        title="Copy"
+      >
+        {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
       </button>
     </div>
   );
@@ -85,16 +75,11 @@ export function EmbedCodeSection() {
   const [tab,          setTab]          = useState<Tab>("script");
   const [copied,       setCopied]       = useState(false);
   const [apiKey,       setApiKey]       = useState<string | null>(null);
-  const [accentColor,  setAccentColor]  = useState<string>("#00f2ff");
+  const [accentColor,  setAccentColor]  = useState<string>("#2563eb");
   const [keyLoading,   setKeyLoading]   = useState(false);
   const [keyVisible,   setKeyVisible]   = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
 
-  /* Browser: always resolves to the real deployment URL (dev or prod).
-     SSR fallback chain: NEXT_PUBLIC_APP_URL → NEXT_PUBLIC_SITE_URL →
-     NEXT_PUBLIC_BASE_URL → hardcoded Vercel production origin.
-     The localhost fallback is intentionally removed so generated snippets
-     are never stamped with a dev URL in any server-rendered context. */
   const origin = typeof window !== "undefined"
     ? window.location.origin
     : (process.env.NEXT_PUBLIC_APP_URL
@@ -110,13 +95,13 @@ export function EmbedCodeSection() {
     : "// Select an agent above to see your API key";
 
   useEffect(() => {
-    if (!activeAgentId) { setApiKey(null); setAccentColor("#00f2ff"); return; }
+    if (!activeAgentId) { setApiKey(null); setAccentColor("#2563eb"); return; }
     setKeyLoading(true);
     setApiKey(null);
     fetch(`/api/agents/${activeAgentId}`)
       .then((r) => r.json())
-      .then((d) => { setApiKey(d?.agent?.apiKey ?? null); setAccentColor(d?.agent?.themeColor ?? "#00f2ff"); })
-      .catch(() => { setApiKey(null); setAccentColor("#00f2ff"); })
+      .then((d) => { setApiKey(d?.agent?.apiKey ?? null); setAccentColor(d?.agent?.themeColor ?? "#2563eb"); })
+      .catch(() => { setApiKey(null); setAccentColor("#2563eb"); })
       .finally(() => setKeyLoading(false));
   }, [activeAgentId]);
 
@@ -146,174 +131,165 @@ export function EmbedCodeSection() {
 
   return (
     <section className="space-y-4">
-      <SectionHeading>Embed &amp; API</SectionHeading>
+      <SectionHeading>Embed &amp; API Configuration</SectionHeading>
 
       {!activeAgentId && (
-        <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-[12px] font-medium text-[#f59e0b]"
-          style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
-          <AlertCircle size={14} />
-          Select an agent from &quot;Saved Agents&quot; above to activate your embed code.
+        <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-[12px] font-medium text-amber-700 bg-amber-50 border border-amber-100">
+          <AlertCircle size={14} className="shrink-0 text-amber-600" />
+          <span>Select an agent from &quot;Saved Agents&quot; above to activate your custom deployment scripts.</span>
         </div>
       )}
 
-      {/* Outer tab switcher */}
-      <div className="flex gap-1 p-1 rounded-xl"
-        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+      {/* Corporate Tab Switcher Dashboard Controls */}
+      <div className="flex gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200/60">
         {(["script", "widget", "apikey"] as Tab[]).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-            style={{
-              background: tab === t ? "rgba(0,242,255,0.12)" : "transparent",
-              border:     tab === t ? "1px solid rgba(0,242,255,0.25)" : "1px solid transparent",
-              color:      tab === t ? "#00f2ff" : "#475569",
-            }}>
-            {t === "script" ? "Embed Script" : t === "widget" ? "Widget URL" : "API Key"}
+          <button 
+            key={t} 
+            onClick={() => setTab(t)}
+            className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-150 ${
+              tab === t 
+                ? "bg-white border border-slate-200/50 text-slate-800 shadow-sm" 
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            {t === "script" ? "Embed Script" : t === "widget" ? "Widget URL" : "API Access"}
           </button>
         ))}
       </div>
 
-      {/* ── Embed Script tab — HTML / Universal only ── */}
+      {/* ── Embed Script Tab Area ── */}
       {tab === "script" && (
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           {activeAgentId && keyLoading && (
-            <div className="flex items-center gap-2 text-[11px] text-[#475569]">
-              <RefreshCw size={11} className="animate-spin" /> Fetching agent config…
+            <div className="flex items-center gap-2 text-[11px] text-slate-400">
+              <RefreshCw size={11} className="animate-spin" /> Syncing configuration index…
             </div>
           )}
 
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase"
-              style={{ background: "rgba(0,242,255,0.12)", border: "1px solid rgba(0,242,255,0.25)", color: "#00f2ff" }}>
+            <span className="px-2 py-0.5 rounded-md text-[9px] font-bold tracking-wider uppercase bg-blue-50 border border-blue-100 text-blue-600">
               Universal
             </span>
-            <span className="text-[10px] text-[#334155]">Any website — no framework or build step required</span>
+            <span className="text-[11px] text-slate-500 font-medium">Asynchronous compilation wrapper — works anywhere</span>
           </div>
 
-          <CodeBlock code={htmlSnippet} accent="#00f2ff" onCopy={() => copy(htmlSnippet)} copied={copied} />
+          <CodeBlock code={htmlSnippet} onCopy={() => copy(htmlSnippet)} copied={copied} />
 
-          <button onClick={() => copy(htmlSnippet)} disabled={keyLoading}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-bold tracking-wide transition-all duration-150 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{
-              background: copied
-                ? "rgba(0,255,148,0.15)"
-                : "linear-gradient(90deg,rgba(0,242,255,0.18),rgba(168,85,247,0.12))",
-              border:    copied ? "1px solid rgba(0,255,148,0.35)" : "1px solid rgba(0,242,255,0.3)",
-              color:     copied ? "#00ff94" : "#00f2ff",
-              boxShadow: copied ? "none" : "0 0 18px rgba(0,242,255,0.08)",
-            }}>
-            {copied ? <><Check size={14} />Copied!</> : <><Copy size={13} />COPY EMBED SCRIPT</>}
+          <button 
+            onClick={() => copy(htmlSnippet)} 
+            disabled={keyLoading}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold transition-all border ${
+              copied 
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
+                : "bg-slate-900 border-slate-900 text-white hover:bg-slate-800 active:scale-[0.99] disabled:opacity-40"
+            }`}
+          >
+            {copied ? <><Check size={14} /> Copied to Clipboard</> : <><Copy size={13} /> Copy Deployment Script</>}
           </button>
 
-          {/* Minimal install note */}
-          <p className="text-[11px] leading-relaxed" style={{ color: "#475569" }}>
-            Paste before the closing{" "}
-            <code className="px-1 py-0.5 rounded font-mono text-[10px]"
-              style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.2)", color: "#c084fc" }}>
+          <p className="text-[11px] leading-relaxed text-slate-400">
+            Paste immediately before the closing{" "}
+            <code className="px-1 py-0.5 rounded font-mono text-[10px] bg-slate-100 border border-slate-200 text-slate-600">
               &lt;/body&gt;
             </code>{" "}
-            tag. Loads asynchronously — zero page-speed impact. For Next.js, React Native, or Flutter,
-            visit the{" "}
-            <a href="/embed-code"
-              style={{ color: "#00f2ff", textDecoration: "underline", textUnderlineOffset: 3 }}>
-              Embed Code
-            </a>{" "}
-            page for framework-specific guides.
+            tag element. For optimized Next.js scripts or localized modules, checkout our comprehensive{" "}
+            <a href="/embed-code" className="text-slate-700 font-semibold underline underline-offset-2 hover:text-slate-900">
+              Documentation guides
+            </a>.
           </p>
 
           {activeAgentId && (
-            <a href={widgetUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 py-2 rounded-xl text-[11px] font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
-              style={{ background: "linear-gradient(90deg,rgba(0,242,255,0.06),rgba(168,85,247,0.06))", border: "1px solid rgba(0,242,255,0.15)" }}>
-              <ExternalLink size={11} style={{ color: "#00f2ff" }} />
-              <span style={{ background: "linear-gradient(90deg,#00f2ff,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                Preview Standalone Widget
-              </span>
+            <a 
+              href={widgetUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-800 shadow-sm transition-all"
+            >
+              <ExternalLink size={11} className="text-slate-400" />
+              <span>Launch Standalone Window</span>
             </a>
           )}
         </div>
       )}
 
-      {/* ── Widget URL tab ── */}
+      {/* ── Widget URL Tab Area ── */}
       {tab === "widget" && (
-        <div className="space-y-3">
-          <div className="relative rounded-xl px-4 py-3 font-mono text-[11px] overflow-x-auto"
-            style={{ background: "rgba(0,0,0,0.45)", border: "1px solid rgba(168,85,247,0.2)" }}>
-            <div className="absolute top-0 left-4 right-4 h-px rounded-full"
-              style={{ background: "linear-gradient(90deg,rgba(168,85,247,0.4),rgba(0,242,255,0.2),transparent)" }} />
-            <pre className="text-[#a855f7] whitespace-pre-wrap break-all">{widgetUrl}</pre>
-            <button onClick={() => copy(widgetUrl)}
-              className="absolute top-3 right-3 p-1.5 rounded-lg text-[#475569] hover:text-[#a855f7] transition-colors"
-              style={{ background: "rgba(0,0,0,0.5)" }}>
-              {copied ? <Check size={13} className="text-[#00ff94]" /> : <Copy size={13} />}
-            </button>
-          </div>
-          <button onClick={() => copy(widgetUrl)} disabled={!activeAgentId}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-bold tracking-wide transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{
-              background: copied ? "rgba(0,255,148,0.15)" : "rgba(168,85,247,0.12)",
-              border:     copied ? "1px solid rgba(0,255,148,0.35)" : "1px solid rgba(168,85,247,0.3)",
-              color:      copied ? "#00ff94" : "#a855f7",
-            }}>
-            {copied ? <><Check size={14} />Copied!</> : "COPY WIDGET URL"}
+        <div className="space-y-3.5">
+          <CodeBlock code={widgetUrl} onCopy={() => copy(widgetUrl)} copied={copied} />
+          
+          <button 
+            onClick={() => copy(widgetUrl)} 
+            disabled={!activeAgentId}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold transition-all border ${
+              copied 
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
+                : "bg-slate-900 border-slate-900 text-white hover:bg-slate-800 active:scale-[0.99] disabled:opacity-40"
+            }`}
+          >
+            {copied ? <><Check size={14} /> Copied to Clipboard</> : "Copy Direct URL Link"}
           </button>
+
           {activeAgentId && (
-            <a href={widgetUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 py-2 rounded-xl text-[11px] font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
-              style={{ background: "linear-gradient(90deg,rgba(168,85,247,0.08),rgba(236,72,153,0.06))", border: "1px solid rgba(168,85,247,0.2)" }}>
-              <ExternalLink size={11} style={{ color: "#a855f7" }} />
-              <span style={{ background: "linear-gradient(90deg,#a855f7,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                Preview Standalone Widget
-              </span>
+            <a 
+              href={widgetUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-800 shadow-sm transition-all"
+            >
+              <ExternalLink size={11} className="text-slate-400" />
+              <span>Open Endpoint Target</span>
             </a>
           )}
         </div>
       )}
 
-      {/* ── API Key tab ── */}
+      {/* ── API Key / Direct Integration Tab Area ── */}
       {tab === "apikey" && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 px-3.5 py-3 rounded-xl"
-            style={{ background: "rgba(0,0,0,0.45)", border: "1px solid rgba(0,242,255,0.15)" }}>
+        <div className="space-y-3.5">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
             {keyLoading ? (
-              <span className="text-[12px] text-[#475569] flex-1">Loading…</span>
+              <span className="text-[12px] text-slate-400 flex-1">Fetching records…</span>
             ) : apiKey ? (
               <>
-                <code className="flex-1 font-mono text-[11px] text-[#00f2ff] break-all">{displayKey}</code>
-                <button onClick={() => setKeyVisible((v) => !v)} className="text-[#475569] hover:text-[#94a3b8] transition-colors">
-                  {keyVisible ? <EyeOff size={13} /> : <Eye size={13} />}
-                </button>
-                <button onClick={() => copy(apiKey)} className="text-[#475569] hover:text-[#00f2ff] transition-colors">
-                  {copied ? <Check size={13} className="text-[#00ff94]" /> : <Copy size={13} />}
-                </button>
+                <code className="flex-1 font-mono text-[11px] text-slate-700 break-all">{displayKey}</code>
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <button 
+                    onClick={() => setKeyVisible((v) => !v)} 
+                    className="p-1 text-slate-400 hover:text-slate-700 transition-colors"
+                  >
+                    {keyVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                  <button 
+                    onClick={() => copy(apiKey)} 
+                    className="p-1 text-slate-400 hover:text-slate-700 transition-colors"
+                  >
+                    {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                  </button>
+                </div>
               </>
             ) : (
-              <span className="text-[12px] text-[#334155] flex-1">
-                {activeAgentId ? "No key found." : "Select an agent first."}
+              <span className="text-[12px] text-slate-400 flex-1">
+                {activeAgentId ? "No secure access keys declared." : "No agent structure designated."}
               </span>
             )}
           </div>
+
           {activeAgentId && (
-            <button onClick={regenerateKey} disabled={regenLoading}
-              className="flex items-center gap-1.5 text-[11px] text-[#f59e0b] hover:text-[#fbbf24] transition-colors disabled:opacity-50">
+            <button 
+              onClick={regenerateKey} 
+              disabled={regenLoading}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-600 hover:text-amber-700 transition-colors disabled:opacity-50"
+            >
               <RefreshCw size={11} className={regenLoading ? "animate-spin" : ""} />
-              {regenLoading ? "Regenerating…" : "Regenerate key"}
+              <span>{regenLoading ? "Re-authorizing credentials…" : "Revoke & Regenerate Secret Key"}</span>
             </button>
           )}
-          <p className="text-[11px] text-[#334155] leading-relaxed">
-            Use the <code className="text-[#475569]">x-api-key</code> header to call{" "}
-            <code className="text-[#475569]">/api/chat</code> directly. Wrong key → 403.
+
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            Attach token header parameter strings via <code className="text-slate-700 font-mono font-bold bg-slate-100 px-1 py-0.5 rounded text-[10px]">x-api-key</code> arrays to pass streaming nodes downstream.
           </p>
-          <div className="relative rounded-xl px-4 py-3 font-mono overflow-x-auto"
-            style={{ background: "rgba(0,0,0,0.45)", border: "1px solid rgba(0,242,255,0.12)" }}>
-            <div className="absolute top-0 left-4 right-4 h-px rounded-full"
-              style={{ background: "linear-gradient(90deg,rgba(0,242,255,0.3),rgba(168,85,247,0.15),transparent)" }} />
-            <pre className="text-[10.5px] text-[#64748b] whitespace-pre-wrap break-all">{apiSnippet}</pre>
-            <button onClick={() => copy(apiSnippet)}
-              className="absolute top-3 right-3 p-1.5 rounded-lg text-[#475569] hover:text-[#00f2ff] transition-colors"
-              style={{ background: "rgba(0,0,0,0.5)" }}>
-              {copied ? <Check size={13} className="text-[#00ff94]" /> : <Copy size={13} />}
-            </button>
-          </div>
+
+          <CodeBlock code={apiSnippet} onCopy={() => copy(apiSnippet)} copied={copied} />
         </div>
       )}
     </section>

@@ -259,7 +259,7 @@ function PasteGuide() {
             className="px-1.5 py-0.5 rounded font-mono text-[10px]"
             style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.35)", color: "#c084fc" }}
           >
-            &lt;/body&gt;
+            {"</body>"}
           </code>{" "}
           tag of your HTML file. Works on any platform — no backend or build step required.
         </p>
@@ -281,11 +281,11 @@ function PasteGuide() {
           </div>
 
           <div className="px-4 py-3 space-y-0.5">
-            <p style={{ color: "#334155" }}>  &lt;!-- your existing page content --&gt;</p>
-            <p style={{ color: "#475569" }}>  &lt;p&gt;Hello, World!&lt;/p&gt;</p>
+            <p style={{ color: "#334155" }}>{"  <!-- your existing page content -->"}</p>
+            <p style={{ color: "#475569" }}>{"  <p>Hello, World!</p>"}</p>
             <p className="flex items-start gap-3 flex-wrap">
               <span style={{ color: "#00f2ff" }}>
-                {"  "}&lt;script src=&quot;…/embed.js&quot; data-agent-id=&quot;…&quot; async&gt;&lt;/script&gt;
+                {'  <script src="…/embed.js" data-agent-id="…" async></script>'}
               </span>
               <span
                 className="shrink-0 px-2 py-0.5 rounded text-[9px] font-black mt-0.5"
@@ -294,8 +294,8 @@ function PasteGuide() {
                 ← Paste here
               </span>
             </p>
-            <p style={{ color: "#ff79c6" }}>  &lt;/body&gt;</p>
-            <p style={{ color: "#ff79c6" }}>&lt;/html&gt;</p>
+            <p style={{ color: "#ff79c6" }}>{"  </body>"}</p>
+            <p style={{ color: "#ff79c6" }}>{"</html>"}</p>
           </div>
         </div>
 
@@ -374,7 +374,7 @@ function MobileGuideCard({ accent, rnInstall }: { accent: string; rnInstall: str
                   style={{ background: "rgba(251,191,36,0.07)", borderTop: "1px solid rgba(251,191,36,0.15)" }}>
                   <span className="text-[9px]">⚡</span>
                   <p className="text-[9px] leading-snug" style={{ color: "#92400e" }}>
-                    <code style={{ color: "#fbbf24" }}>usesCleartextTraffic=&quot;true&quot;</code> is required for localhost HTTP during development. Remove or restrict to debug builds before shipping to production.
+                    <code style={{ color: "#fbbf24" }}>usesCleartextTraffic="true"</code> is required for localhost HTTP during development. Remove or restrict to debug builds before shipping to production.
                   </p>
                 </div>
               </div>
@@ -779,427 +779,248 @@ NEXT_PUBLIC_BASE_URL=${siteOrigin}`;
   return (
     <DashboardShell title="Embed Code">
       <div className="h-full overflow-y-auto">
-        <div className="px-4 sm:px-6 lg:px-10 py-6 w-full max-w-7xl mx-auto space-y-8">
+        <div className="p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto">
+          <div className="bg-white border border-slate-200/60 rounded-2xl p-6">
+            <div className="w-full space-y-8">
 
-          {/* ── Page header ── */}
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-black tracking-tight">
-                <span style={{
-                  background:           "linear-gradient(90deg,#00f2ff 0%,#a855f7 60%,#ec4899 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor:  "transparent",
-                  filter:               "drop-shadow(0 0 12px rgba(0,242,255,0.25))",
-                }}>
-                  Embed Your Widget
-                </span>
-              </h1>
-              <p className="text-[13px] text-[#64748b]">
-                Add your AI agent to any website in seconds — no backend required.
-              </p>
-            </div>
+              {/* ── Page header ── */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900">
+                    Embed Your Widget
+                  </h1>
+                  <p className="text-[13px] text-slate-500">
+                    Add your AI agent to any website in seconds — no backend required.
+                  </p>
+                </div>
 
-            {/* Agent status pill */}
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-semibold shrink-0"
-              style={{
-                background: isLive    ? "rgba(0,255,148,0.06)"
-                  : activeAgentId     ? "rgba(255,255,255,0.04)"
-                  : "rgba(255,255,255,0.04)",
-                border: isLive        ? "1px solid rgba(0,255,148,0.22)"
-                  : activeAgentId     ? "1px solid rgba(255,255,255,0.08)"
-                  : "1px solid rgba(255,255,255,0.08)",
-                color: isLive         ? "#00ff94"
-                  : activeAgentId     ? "#64748b"
-                  : "#475569",
-              }}
-            >
-              <div
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{
-                  background: isLive ? "#00ff94" : activeAgentId ? "#f59e0b" : "#334155",
-                  boxShadow:  isLive ? "0 0 6px #00ff94" : "none",
-                  animation:  isLive ? "pulse 2s infinite" : "none",
-                }}
-              />
-              {loadingMeta
-                ? "Loading…"
-                : agentLabel
-                  ? `Agent: ${agentLabel}`
-                  : "No agent selected"}
-            </div>
-          </div>
-
-          {/* ── Framework tab selector (2×2 grid) ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {FRAMEWORK_TABS.map(({ id, label, sublabel, color, glow }) => {
-              const isActive = frameworkTab === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setFrameworkTab(id)}
-                  className="relative flex flex-col items-start gap-1 p-4 rounded-2xl text-left transition-all duration-200 overflow-hidden"
-                  style={{
-                    background:     isActive ? `linear-gradient(135deg,${color}10,${color}05)` : "rgba(255,255,255,0.025)",
-                    border:         isActive ? `1.5px solid ${color}55` : `1px solid rgba(255,255,255,0.07)`,
-                    boxShadow:      isActive ? `0 0 24px ${glow.replace("0.3","0.12")}` : "none",
-                    backdropFilter: "blur(8px)",
-                  }}
+                {/* Agent status pill */}
+                <div
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-semibold shrink-0 bg-white border border-slate-200 shadow-sm"
                 >
-                  {isActive && (
-                    <div className="absolute top-0 left-0 right-0 h-px"
-                      style={{ background: `linear-gradient(90deg,${color},${color}40,transparent)` }} />
-                  )}
-                  <p className="text-[13px] font-bold leading-none" style={{ color: isActive ? color : "#94a3b8" }}>
-                    {label}
-                  </p>
-                  <p className="text-[10px] leading-snug" style={{ color: "#475569" }}>{sublabel}</p>
-                  {isActive && <ChevronRight size={12} style={{ color, position: "absolute", top: 14, right: 10 }} />}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ══════════════════════════════════════════
-              GATE — shown when no agent is selected
-          ══════════════════════════════════════════ */}
-          {!activeAgentId && <NoAgentGate />}
-
-          {/* ══════════════════════════════════════════
-              CODE SECTION — shown when agent is active
-          ══════════════════════════════════════════ */}
-          {activeAgentId && (
-            <>
-              <style>{`
-                @keyframes tab-slide {
-                  from { opacity: 0; transform: translateY(8px); }
-                  to   { opacity: 1; transform: translateY(0); }
-                }
-              `}</style>
-
-              {/* ── Live-data status banner ── */}
-              <div className="relative flex items-center gap-3 px-4 py-3.5 rounded-xl overflow-hidden"
-                style={{
-                  background: isLive ? "rgba(0,255,148,0.07)" : "rgba(255,255,255,0.04)",
-                  border:     isLive ? "1px solid rgba(0,255,148,0.3)" : "1px solid rgba(255,255,255,0.08)",
-                  boxShadow:  isLive ? "0 0 24px rgba(0,255,148,0.08)" : "none",
-                }}>
-                {isLive && (
-                  <div className="absolute inset-0 pointer-events-none opacity-[0.04]"
-                    style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,148,1) 3px,rgba(0,255,148,1) 4px)" }} />
-                )}
-                {loadingMeta ? (
-                  <RefreshCw size={14} className="animate-spin shrink-0" style={{ color: "#475569" }} />
-                ) : isLive ? (
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ background: "#00ff94", boxShadow: "0 0 8px #00ff94, 0 0 18px rgba(0,255,148,0.5)", animation: "pulse 2s infinite" }} />
-                ) : (
-                  <AlertCircle size={14} className="shrink-0" style={{ color: "#f59e0b" }} />
-                )}
-                <p className="text-[12px] leading-relaxed relative z-10">
-                  {loadingMeta ? (
-                    <span className="text-[#475569]">Loading your agent credentials…</span>
-                  ) : isLive ? (
-                    <>
-                      <span className="font-black" style={{ color: "#00ff94" }}>● Live data injected.</span>{" "}
-                      <span className="text-[#64748b]">All placeholders replaced with your real credentials — just click <span className="text-[#e2e8f0] font-semibold">Copy</span> and paste.</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-bold" style={{ color: "#f59e0b" }}>API key not found.</span>{" "}
-                      <span className="text-[#64748b]">Regenerate it in the <span className="text-[#00f2ff] font-semibold">Embed &amp; API</span> tab inside Agent Space.</span>
-                    </>
-                  )}
-                </p>
-              </div>
-
-              {/* ── html: HTML / Vanilla Script ── */}
-              {frameworkTab === "html" && (
-                <div key="tab-html" className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ animation: "tab-slide 0.18s ease-out" }}>
-                  <div className="space-y-5">
-                    <TerminalBlock
-                      code={HTML_SNIPPET} title="index.html" lang="HTML" accent="#00f2ff"
-                      tokenize={tokenizeHTML} copied={copied === "html"} onCopy={() => copy(HTML_SNIPPET, "html")} isLive={isLive}
-                    />
-                    <PasteGuide />
-                  </div>
-                  <div className="space-y-5">
-                    <div className="rounded-2xl overflow-hidden"
-                      style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(6,6,14,0.8)" }}>
-                      <div className="px-4 py-3 flex items-center gap-2"
-                        style={{ background: "rgba(0,0,0,0.3)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                        <div className="w-5 h-5 rounded flex items-center justify-center"
-                          style={{ background: "rgba(0,242,255,0.12)", border: "1px solid rgba(0,242,255,0.28)" }}>
-                          <Zap size={11} className="text-[#00f2ff]" />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest"
-                          style={{ background: "linear-gradient(90deg,#00f2ff,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                          Script Attributes
-                        </span>
-                      </div>
-                      <div>
-                        {[
-                          { attr: "data-agent-id",    type: "string",  val: "Auto-filled — your agent's unique ID",         required: true  },
-                          { attr: "data-accent-color", type: "string",  val: "Hex colour (e.g. #00f2ff)",                    required: false },
-                          { attr: "async",             type: "boolean", val: "Non-blocking load — strongly recommended",      required: false },
-                        ].map(({ attr, type, val, required }, i, arr) => (
-                          <div key={attr}
-                            className="grid grid-cols-[1fr_auto] items-start gap-3 px-4 py-3 transition-colors hover:bg-white/[0.02]"
-                            style={{ borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <code className="text-[11px] font-mono font-bold text-[#00f2ff]">{attr}</code>
-                                {required && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded"
-                                  style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>required</span>}
-                              </div>
-                              <p className="text-[11px] text-[#475569]">{val}</p>
-                            </div>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full font-mono mt-0.5"
-                              style={{ background: "rgba(255,255,255,0.05)", color: "#64748b", border: "1px solid rgba(255,255,255,0.08)" }}>{type}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <InfoCallout emoji="💡" title="HTML Integration Guide" from="#00f2ff" to="#a855f7"
-                      body={<>Paste before the closing <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(0,242,255,0.08)", color: "#00f2ff" }}>&lt;/body&gt;</code> tag. Works on WordPress, Shopify, PHP, and static sites — zero build step.</>}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* ── nextjs: Next.js — zero-hydration AgentEmbedScript pattern ── */}
-              {frameworkTab === "nextjs" && (
-                <div key="tab-nextjs" className="space-y-5" style={{ animation: "tab-slide 0.18s ease-out" }}>
-                  {/* Step 1 — component file */}
-                  <TerminalBlock
-                    code={NEXTJS_COMPONENT_SNIPPET} title="components/AgentEmbedScript.tsx" lang="TSX" accent="#a855f7"
-                    tokenize={tokenizeTSX} copied={copied === "nextjs-component"} onCopy={() => copy(NEXTJS_COMPONENT_SNIPPET, "nextjs-component")} isLive={isLive}
-                  />
-                  <InfoCallout emoji="⚡" title="Zero-hydration pattern" from="#a855f7" to="#ec4899"
-                    body={<>Returns <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.1)", color: "#c084fc" }}>null</code> on the server and first client render — no SSR output, no hydration surface, no React Error #418. The script tag is injected purely via <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.1)", color: "#c084fc" }}>useEffect</code> after hydration completes.</>}
-                  />
-
-                  {/* Step 2 — layout.tsx usage */}
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <div className="space-y-5">
-                      <TerminalBlock
-                        code={NEXTJS_SNIPPET} title="app/layout.tsx" lang="TSX" accent="#a855f7"
-                        tokenize={tokenizeTSX} copied={copied === "nextjs"} onCopy={() => copy(NEXTJS_SNIPPET, "nextjs")} isLive={isLive}
-                      />
-                      <InfoCallout emoji="💡" title="Next.js Integration Guide" from="#a855f7" to="#06b6d4"
-                        body={<>Copy <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.08)", color: "#c084fc" }}>AgentEmbedScript.tsx</code> into your project, then add it to <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(168,85,247,0.08)", color: "#c084fc" }}>app/layout.tsx</code>. Works with App Router and Pages Router — no next/script required.</>}
-                      />
-                    </div>
-                    <div className="space-y-5">
-                      <TerminalBlock
-                        code={ENV_SNIPPET} title=".env.local" lang="ENV" accent="#00ff94"
-                        tokenize={tokenizeEnv} copied={copied === "env"} onCopy={() => copy(ENV_SNIPPET, "env")} isLive={isLive}
-                      />
-                      <InfoCallout emoji="🔐" title="Security First" from="#f59e0b" to="#ef4444"
-                        body={<>Never commit <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(245,158,11,0.12)", color: "#fbbf24" }}>.env.local</code> to version control. Set variables in your hosting dashboard for production.</>}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── react: React Functional Component ── */}
-              {frameworkTab === "react" && (
-                <div key="tab-react" className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ animation: "tab-slide 0.18s ease-out" }}>
-                  <div className="space-y-5">
-                    <TerminalBlock
-                      code={REACT_SNIPPET} title="CyberAgentWidget.tsx" lang="TSX" accent="#ec4899"
-                      tokenize={tokenizeTSX} copied={copied === "react"} onCopy={() => copy(REACT_SNIPPET, "react")} isLive={isLive}
-                    />
-                  </div>
-                  <div className="space-y-5">
-                    <InfoCallout emoji="⚡" title="No npm install" from="#ec4899" to="#a855f7"
-                      body={<>Drop this component into your root <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(236,72,153,0.1)", color: "#f472b6" }}>App.tsx</code> or any layout file. Works with <strong className="text-[#e2e8f0]">Vite, CRA, Remix, Gatsby</strong> — no package install required.</>}
-                    />
-                    <InfoCallout emoji="💡" title="React Integration Guide" from="#ec4899" to="#a855f7"
-                      body={<>The script tag is injected once on mount and auto-removed on unmount — safe for single-page apps with dynamic routing. Your <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(236,72,153,0.08)", color: "#f472b6" }}>data-agent-id</code> and <code className="px-1 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(236,72,153,0.08)", color: "#f472b6" }}>data-accent-color</code> are pre-filled with your live credentials.</>}
-                    />
-                    <TerminalBlock
-                      code={ENV_SNIPPET} title=".env.local" lang="ENV" accent="#00ff94"
-                      tokenize={tokenizeEnv} copied={copied === "env"} onCopy={() => copy(ENV_SNIPPET, "env")} isLive={isLive}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* ── react_native: React Native WebView ── */}
-              {frameworkTab === "react_native" && (
-                <div key="tab-rn" className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ animation: "tab-slide 0.18s ease-out" }}>
-                  <div className="space-y-5">
-                    <TerminalBlock
-                      code={RN_SNIPPET} title="CyberAgentMobileWidget.tsx" lang="TSX" accent="#00d4ff"
-                      tokenize={tokenizeTSX} copied={copied === "rn"} onCopy={() => copy(RN_SNIPPET, "rn")} isLive={isLive}
-                    />
-                  </div>
-                  <div className="space-y-5">
-                    <MobileGuideCard accent="#00d4ff" rnInstall="npm install react-native-webview" />
-                  </div>
-                </div>
-              )}
-
-              {/* ── flutter: Flutter InAppWebView ── */}
-              {frameworkTab === "flutter" && (
-                <div key="tab-flutter" className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ animation: "tab-slide 0.18s ease-out" }}>
-                  <div className="space-y-5">
-                    <TerminalBlock
-                      code={FLUTTER_SNIPPET} title="cyber_agent_widget.dart" lang="Dart" accent="#53c5f6"
-                      tokenize={tokenizeTSX} copied={copied === "flutter"} onCopy={() => copy(FLUTTER_SNIPPET, "flutter")} isLive={isLive}
-                    />
-                  </div>
-                  <div className="space-y-5">
-                    <MobileGuideCard accent="#53c5f6" rnInstall="flutter pub add flutter_inappwebview" />
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ════════════════════════════════════
-              WHICH ONE SHOULD I CHOOSE?
-          ════════════════════════════════════ */}
-          <div className="relative rounded-2xl overflow-hidden"
-            style={{ border: "1px solid rgba(0,242,255,0.12)", background: "rgba(3,3,10,0.85)", backdropFilter: "blur(20px)" }}>
-            <div className="absolute top-0 left-0 right-0 h-px"
-              style={{ background: "linear-gradient(90deg,#00f2ff,#a855f7,#ec4899,#00d4ff,#53c5f6)" }} />
-
-            {/* Subtle grid overlay */}
-            <div className="absolute inset-0 pointer-events-none opacity-[0.015]"
-              style={{ backgroundImage: "linear-gradient(rgba(0,242,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(0,242,255,1) 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
-
-            <div className="relative px-6 py-6 space-y-5">
-              {/* Header */}
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(0,242,255,0.1)", border: "1px solid rgba(0,242,255,0.25)", boxShadow: "0 0 20px rgba(0,242,255,0.1)" }}>
-                  <Star size={16} className="text-[#00f2ff]" />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-black tracking-wide"
-                    style={{ background: "linear-gradient(90deg,#00f2ff,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                    Which one should I choose?
-                  </h3>
-                  <p className="text-[11px] text-[#475569]">Pick the integration that matches your production tech stack</p>
-                </div>
-              </div>
-
-              {/* 3-card matrix */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {[
-                  {
-                    icon: Code2, label: "Script Tag / Universal", color: "#00f2ff",
-                    ease: 5, badge: "🏆 Easiest",
-                    tagline: "Paste & go — works everywhere",
-                    best: ["WordPress", "Shopify", "Wix", "Webflow", "Static HTML"],
-                    pros: ["Zero build step", "Paste & done in 10 sec", "Works everywhere"],
-                    cons: ["Less runtime programmatic customisation"],
-                  },
-                  {
-                    icon: Globe, label: "React / Next.js Frameworks", color: "#a855f7",
-                    ease: 4, badge: "⚡ Recommended",
-                    tagline: "TypeScript-safe, zero npm weight",
-                    best: ["Next.js (App & Pages)", "React SPAs", "Vite", "Remix", "Gatsby"],
-                    pros: ["Full TypeScript definitions", "No npm weight install", "Self-cleaning on unmount"],
-                    cons: ["Requires one layout script or component file"],
-                  },
-                  {
-                    icon: Smartphone, label: "Native Mobile WebView", color: "#00d4ff",
-                    ease: 3, badge: "📱 Live",
-                    tagline: "React Native & Flutter — full support",
-                    best: ["React Native", "Flutter", "Cross-Platform architectures"],
-                    pros: ["Fluid viewport rendering", "Isolated execution thread", "Zero dependency bloat"],
-                    cons: ["Requires internet manifest permission keys"],
-                  },
-                ].map(({ icon: Icon, label, color, ease, best, pros, cons, badge, tagline }) => (
                   <div
-                    key={label}
-                    className="rounded-xl p-5 space-y-3.5 relative overflow-hidden flex flex-col"
-                    style={{ background: `${color}06`, border: `1px solid ${color}28`, backdropFilter: "blur(8px)" }}
-                  >
-                    <div className="absolute top-0 left-0 right-0 h-[2px]"
-                      style={{ background: `linear-gradient(90deg,${color},${color}40,transparent)` }} />
-
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: `${color}15`, border: `1px solid ${color}35`, boxShadow: `0 0 16px ${color}18` }}>
-                        <Icon size={18} style={{ color, filter: `drop-shadow(0 0 4px ${color}80)` }} />
-                      </div>
-                      <span className="text-[9px] font-black px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 mt-0.5"
-                        style={{ background: `${color}15`, border: `1px solid ${color}35`, color, boxShadow: `0 0 8px ${color}18` }}>
-                        {badge}
-                      </span>
-                    </div>
-
-                    <div>
-                      <p className="text-[13px] font-black leading-snug" style={{ color }}>{label}</p>
-                      <p className="text-[11px] text-[#475569] mt-0.5">{tagline}</p>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-[#334155] mr-0.5">Ease</span>
-                      {Array.from({ length: 5 }).map((_, idx) => (
-                        <div key={idx} className="w-2.5 h-2.5 rounded-full"
-                          style={{ background: idx < ease ? color : "rgba(255,255,255,0.06)", boxShadow: idx < ease ? `0 0 6px ${color}70` : "none" }} />
-                      ))}
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: `${color}80` }}>Best for</p>
-                      <div className="flex flex-wrap gap-1">
-                        {best.map((b) => (
-                          <span key={b} className="text-[9px] px-2 py-0.5 rounded-full font-medium"
-                            style={{ background: `${color}0e`, color: `${color}cc`, border: `1px solid ${color}20` }}>
-                            {b}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 flex-1">
-                      {pros.map((p) => (
-                        <div key={p} className="flex items-start gap-2 text-[11px] text-[#64748b]">
-                          <span className="shrink-0 text-[10px] mt-0.5" style={{ color: "#00ff94" }}>✓</span>{p}
-                        </div>
-                      ))}
-                      {cons.map((c) => (
-                        <div key={c} className="flex items-start gap-2 text-[11px] text-[#334155]">
-                          <span className="shrink-0 text-[10px] mt-0.5" style={{ color: "#f87171" }}>✕</span>{c}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pro tip terminal banner */}
-              <div
-                className="relative rounded-xl overflow-hidden"
-                style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(0,242,255,0.18)", backdropFilter: "blur(12px)" }}
-              >
-                <div className="absolute top-0 left-0 right-0 h-px"
-                  style={{ background: "linear-gradient(90deg,#00f2ff,rgba(0,242,255,0.2),transparent)" }} />
-                <div className="flex items-start gap-3 px-4 py-3.5">
-                  <Sparkles size={14} className="shrink-0 mt-0.5" style={{ color: "#00f2ff" }} />
-                  <p className="text-[12px] text-[#64748b] leading-relaxed">
-                    <span style={{ color: "#00f2ff", fontWeight: 700 }}>Pro tip:</span>{" "}
-                    Not sure? Start with the{" "}
-                    <span style={{ color: "#e2e8f0", fontWeight: 600 }}>Universal Script Tag</span> — it runs securely on any system,
-                    and you can easily transition to a framework wrapper later. Your unique{" "}
-                    <code className="px-1.5 py-0.5 rounded font-mono text-[11px]"
-                      style={{ background: "rgba(0,242,255,0.08)", border: "1px solid rgba(0,242,255,0.2)", color: "#00f2ff" }}>
-                      data-agent-id
-                    </code>{" "}
-                    remains consistent across all integration channels.
-                  </p>
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{
+                      background: isLive ? "#22c55e" : activeAgentId ? "#f59e0b" : "#94a3b8",
+                      boxShadow:  isLive ? "0 0 6px #22c55e" : "none",
+                      animation:  isLive ? "pulse 2s infinite" : "none",
+                    }}
+                  />
+                  {loadingMeta
+                    ? "Loading…"
+                    : agentLabel
+                      ? `Agent: ${agentLabel}`
+                      : "No agent selected"}
                 </div>
               </div>
+
+              {/* ── Framework tab selector (2×2 grid) ── */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {FRAMEWORK_TABS.map(({ id, label, sublabel, color, glow }) => {
+                  const isActive = frameworkTab === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setFrameworkTab(id)}
+                      className="relative flex flex-col items-start gap-1 p-4 rounded-2xl text-left transition-all duration-200 overflow-hidden bg-white border border-slate-200 hover:border-slate-300"
+                      style={{
+                        borderColor: isActive ? color : undefined,
+                        boxShadow: isActive ? `0 0 0 1px ${color}40, 0 0 20px ${glow.replace("0.3","0.08")}` : undefined,
+                      }}
+                    >
+                      <p className="text-[13px] font-bold leading-none" style={{ color: isActive ? color : "#334155" }}>
+                        {label}
+                      </p>
+                      <p className="text-[10px] leading-snug text-slate-500">{sublabel}</p>
+                      {isActive && <ChevronRight size={12} style={{ color, position: "absolute", top: 14, right: 10 }} />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ══════════════════════════════════════════
+                  GATE — shown when no agent is selected
+              ══════════════════════════════════════════ */}
+              {!activeAgentId && <NoAgentGate />}
+
+              {/* ══════════════════════════════════════════
+                  CODE SECTION — shown when agent is active
+              ══════════════════════════════════════════ */}
+              {activeAgentId && (
+                <>
+                  <style>{`
+                    @keyframes tab-slide {
+                      from { opacity: 0; transform: translateY(8px); }
+                      to   { opacity: 1; transform: translateY(0); }
+                    }
+                  `}</style>
+
+                  {/* ── Live-data status banner ── */}
+                  <div className="relative flex items-center gap-3 px-4 py-3.5 rounded-xl overflow-hidden bg-white border border-slate-200"
+                    style={{
+                      background: isLive ? "rgba(34,197,94,0.06)" : "bg-white",
+                      border:     isLive ? "1px solid rgba(34,197,94,0.3)" : "1px solid rgba(0,0,0,0.08)",
+                    }}>
+                    {isLive && (
+                      <div className="absolute inset-0 pointer-events-none opacity-[0.04]"
+                        style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(34,197,94,1) 3px,rgba(34,197,94,1) 4px)" }} />
+                    )}
+                    {loadingMeta ? (
+                      <RefreshCw size={14} className="animate-spin shrink-0 text-slate-400" />
+                    ) : isLive ? (
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ background: "#22c55e", boxShadow: "0 0 8px #22c55e", animation: "pulse 2s infinite" }} />
+                    ) : (
+                      <AlertCircle size={14} className="shrink-0 text-amber-500" />
+                    )}
+                    <p className="text-[12px] leading-relaxed relative z-10">
+                      {loadingMeta ? (
+                        <span className="text-slate-400">Loading your agent credentials…</span>
+                      ) : isLive ? (
+                        <>
+                          <span className="font-black text-green-600">● Live data injected.</span>{" "}
+                          <span className="text-slate-500">All placeholders replaced with your real credentials — just click <span className="text-slate-700 font-semibold">Copy</span> and paste.</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-bold text-amber-600">API key not found.</span>{" "}
+                          <span className="text-slate-500">Regenerate it in the Embed & API tab inside Agent Space.</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* ── html: HTML / Vanilla Script ── */}
+                  {frameworkTab === "html" && (
+                    <div key="tab-html" className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ animation: "tab-slide 0.18s ease-out" }}>
+                      <div className="space-y-5">
+                        <TerminalBlock
+                          code={HTML_SNIPPET} title="index.html" lang="HTML" accent="#00f2ff"
+                          tokenize={tokenizeHTML} copied={copied === "html"} onCopy={() => copy(HTML_SNIPPET, "html")} isLive={isLive}
+                        />
+                        <PasteGuide />
+                      </div>
+                      <div className="space-y-5">
+                        <div className="rounded-2xl overflow-hidden bg-white border border-slate-200">
+                          <div className="px-4 py-3 flex items-center gap-2 border-b border-slate-100 bg-slate-50">
+                            <div className="w-5 h-5 rounded flex items-center justify-center bg-blue-50 border border-blue-200">
+                              <Zap size={11} className="text-blue-500" />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-700">
+                              Script Attributes
+                            </span>
+                          </div>
+                          <div>
+                            {[
+                              { attr: "data-agent-id",    type: "string",  val: "Auto-filled — your agent's unique ID",         required: true  },
+                              { attr: "data-accent-color", type: "string",  val: "Hex colour (e.g. #00f2ff)",                    required: false },
+                              { attr: "async",             type: "boolean", val: "Non-blocking load — strongly recommended",      required: false },
+                            ].map(({ attr, type, val, required }, i, arr) => (
+                              <div key={attr}
+                                className="grid grid-cols-[1fr_auto] items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
+                                style={{ borderBottom: i < arr.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <code className="text-[11px] font-mono font-bold text-blue-600">{attr}</code>
+                                    {required && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-50 text-rose-500 border border-rose-200">required</span>}
+                                  </div>
+                                  <p className="text-[11px] text-slate-500">{val}</p>
+                                </div>
+                                <span className="text-[9px] px-2 py-0.5 rounded-full font-mono mt-0.5 bg-slate-100 text-slate-500 border border-slate-200">{type}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <InfoCallout emoji="💡" title="HTML Integration Guide" from="#00f2ff" to="#a855f7"
+                          body={<>Paste before the closing <code className="px-1 py-0.5 rounded text-[10px] font-mono bg-blue-50 text-blue-600">{"</body>"}</code> tag. Works on WordPress, Shopify, PHP, and static sites — zero build step.</>}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── nextjs: Next.js — zero-hydration AgentEmbedScript pattern ── */}
+                  {frameworkTab === "nextjs" && (
+                    <div key="tab-nextjs" className="space-y-5" style={{ animation: "tab-slide 0.18s ease-out" }}>
+                      {/* Step 1 — component file */}
+                      <TerminalBlock
+                        code={NEXTJS_COMPONENT_SNIPPET} title="components/AgentEmbedScript.tsx" lang="TSX" accent="#a855f7"
+                        tokenize={tokenizeTSX} copied={copied === "nextjs-component"} onCopy={() => copy(NEXTJS_COMPONENT_SNIPPET, "nextjs-component")} isLive={isLive}
+                      />
+                      <InfoCallout emoji="⚡" title="Zero-hydration pattern" from="#a855f7" to="#ec4899"
+                        body={<>Returns <code className="px-1 py-0.5 rounded text-[10px] font-mono bg-purple-50 text-purple-600">null</code> on the server and first client render — no SSR output, no hydration surface, no React Error #418. The script tag is injected purely via <code className="px-1 py-0.5 rounded text-[10px] font-mono bg-purple-50 text-purple-600">useEffect</code> after hydration completes.</>}
+                      />
+
+                      {/* Step 2 — layout.tsx usage */}
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <div className="space-y-5">
+                          <TerminalBlock
+                            code={NEXTJS_SNIPPET} title="app/layout.tsx" lang="TSX" accent="#a855f7"
+                            tokenize={tokenizeTSX} copied={copied === "nextjs"} onCopy={() => copy(NEXTJS_SNIPPET, "nextjs")} isLive={isLive}
+                          />
+                          <InfoCallout emoji="💡" title="Next.js Integration Guide" from="#a855f7" to="#06b6d4"
+                            body={<>Copy <code className="px-1 py-0.5 rounded text-[10px] font-mono bg-purple-50 text-purple-600">AgentEmbedScript.tsx</code> into your project, then add it to <code className="px-1 py-0.5 rounded text-[10px] font-mono bg-purple-50 text-purple-600">app/layout.tsx</code>. Works with App Router and Pages Router — no next/script required.</>}
+                          />
+                        </div>
+                        <div className="space-y-5">
+                          <TerminalBlock
+                            code={ENV_SNIPPET} title=".env.local" lang="ENV" accent="#00ff94"
+                            tokenize={tokenizeEnv} copied={copied === "env"} onCopy={() => copy(ENV_SNIPPET, "env")} isLive={isLive}
+                          />
+                          <InfoCallout emoji="🔐" title="Security First" from="#f59e0b" to="#ef4444"
+                            body={<>Never commit <code className="px-1 py-0.5 rounded text-[10px] font-mono bg-amber-50 text-amber-600">.env.local</code> to version control. Set variables in your hosting dashboard for production.</>}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── react: React Component ── */}
+                  {frameworkTab === "react" && (
+                    <div key="tab-react" className="space-y-5" style={{ animation: "tab-slide 0.18s ease-out" }}>
+                      <TerminalBlock
+                        code={REACT_SNIPPET} title="CyberAgentWidget.tsx" lang="TSX" accent="#ec4899"
+                        tokenize={tokenizeTSX} copied={copied === "react"} onCopy={() => copy(REACT_SNIPPET, "react")} isLive={isLive}
+                      />
+                      <InfoCallout emoji="⚛️" title="React Integration Guide" from="#ec4899" to="#06b6d4"
+                        body={<>Component returns <code className="px-1 py-0.5 rounded text-[10px] font-mono bg-pink-50 text-pink-600">null</code> — zero DOM footprint. Place it anywhere in your component tree, e.g., inside <code className="px-1 py-0.5 rounded text-[10px] font-mono bg-pink-50 text-pink-600">{'<App>'}</code>. Works with Vite, CRA, and any React SPA. No extra dependencies required.</>}
+                      />
+                    </div>
+                  )}
+
+                  {/* ── react_native: React Native WebView ── */}
+                  {frameworkTab === "react_native" && (
+                    <div key="tab-rn" className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ animation: "tab-slide 0.18s ease-out" }}>
+                      <div className="space-y-5">
+                        <TerminalBlock
+                          code={RN_SNIPPET} title="CyberAgentMobileWidget.tsx" lang="TSX" accent="#00d4ff"
+                          tokenize={tokenizeTSX} copied={copied === "rn"} onCopy={() => copy(RN_SNIPPET, "rn")} isLive={isLive}
+                        />
+                      </div>
+                      <div className="space-y-5">
+                        <MobileGuideCard accent="#00d4ff" rnInstall="npm install react-native-webview" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── flutter: Flutter InAppWebView ── */}
+                  {frameworkTab === "flutter" && (
+                    <div key="tab-flutter" className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ animation: "tab-slide 0.18s ease-out" }}>
+                      <div className="space-y-5">
+                        <TerminalBlock
+                          code={FLUTTER_SNIPPET} title="cyber_agent_mobile_widget.dart" lang="Dart" accent="#53c5f6"
+                          tokenize={tokenizeTSX} copied={copied === "flutter"} onCopy={() => copy(FLUTTER_SNIPPET, "flutter")} isLive={isLive}
+                        />
+                      </div>
+                      <div className="space-y-5">
+                        <MobileGuideCard accent="#53c5f6" rnInstall="flutter pub add flutter_inappwebview" />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
             </div>
           </div>
-
         </div>
       </div>
     </DashboardShell>

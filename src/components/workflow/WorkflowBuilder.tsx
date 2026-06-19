@@ -32,13 +32,13 @@ const NODE_H = 72;
 
 const NODE_META: Record<NodeType, {
   label: string; icon: LucideIcon; color: string;
-  glow: string; desc: string; gradient: string;
+  glow: string; desc: string; lightBg: string;
 }> = {
-  start:     { label: "Start",      icon: Play,          color: "#00ff94", glow: "rgba(0,255,148,0.3)",    desc: "Entry point of the flow",     gradient: "linear-gradient(135deg,rgba(0,255,148,0.12),rgba(0,255,148,0.04))"  },
-  action:    { label: "AI Action",  icon: Bot,           color: "#00f2ff", glow: "rgba(0,242,255,0.3)",    desc: "Run an AI processing step",   gradient: "linear-gradient(135deg,rgba(0,242,255,0.12),rgba(0,242,255,0.04))"  },
-  condition: { label: "Condition",  icon: GitBranch,     color: "#f59e0b", glow: "rgba(245,158,11,0.3)",   desc: "Branch based on a condition", gradient: "linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.04))" },
-  response:  { label: "Response",   icon: MessageSquare, color: "#a855f7", glow: "rgba(168,85,247,0.3)",   desc: "Send a message to the user",  gradient: "linear-gradient(135deg,rgba(168,85,247,0.12),rgba(168,85,247,0.04))" },
-  end:       { label: "End",        icon: StopCircle,    color: "#f87171", glow: "rgba(248,113,113,0.3)",  desc: "Terminate the flow",          gradient: "linear-gradient(135deg,rgba(248,113,113,0.12),rgba(248,113,113,0.04))" },
+  start:     { label: "Start",      icon: Play,          color: "#10b981", glow: "rgba(16,185,129,0.25)",    desc: "Entry point of the flow",     lightBg: "bg-emerald-50"  },
+  action:    { label: "AI Action",  icon: Bot,           color: "#06b6d4", glow: "rgba(6,182,212,0.25)",     desc: "Run an AI processing step",   lightBg: "bg-cyan-50"     },
+  condition: { label: "Condition",  icon: GitBranch,     color: "#f59e0b", glow: "rgba(245,158,11,0.25)",    desc: "Branch based on a condition", lightBg: "bg-amber-50"    },
+  response:  { label: "Response",   icon: MessageSquare, color: "#a855f7", glow: "rgba(168,85,247,0.25)",    desc: "Send a message to the user",  lightBg: "bg-purple-50"   },
+  end:       { label: "End",        icon: StopCircle,    color: "#ef4444", glow: "rgba(239,68,68,0.25)",     desc: "Terminate the flow",          lightBg: "bg-red-50"      },
 };
 
 const DEFAULT_NODES: WFNode[] = [
@@ -61,9 +61,7 @@ const DEFAULT_EDGES: WFEdge[] = [
   { id: "e-r1-e1", from: "r1", to: "e1", fromPort: "default" },
 ];
 
-/* ══════════════════════════════════════════════
-   Geometry helpers
-══════════════════════════════════════════════ */
+/* ── Geometry helpers ── */
 function calcEdgePath(from: WFNode, to: WFNode, port: WFEdge["fromPort"]) {
   let sy = from.y + NODE_H / 2;
   if (port === "yes") sy = from.y + NODE_H * 0.35;
@@ -83,7 +81,7 @@ function edgeMid(from: WFNode, to: WFNode, port: WFEdge["fromPort"]) {
 }
 
 /* ══════════════════════════════════════════════
-   Node Card
+   Node Card — Light Theme
 ══════════════════════════════════════════════ */
 function NodeCard({ node, selected, onSelect, onDragStart, onDragStartTouch, onDelete }: {
   node: WFNode; selected: boolean;
@@ -106,53 +104,41 @@ function NodeCard({ node, selected, onSelect, onDragStart, onDragStartTouch, onD
       className="absolute select-none cursor-grab active:cursor-grabbing group/node"
       style={{ left: node.x, top: node.y, width: NODE_W, zIndex: selected ? 10 : 1 }}
     >
-      {/* Outer glow ring when selected */}
+      {/* Selected ring */}
       {selected && (
         <div
           className="absolute inset-0 rounded-xl pointer-events-none"
-          style={{
-            boxShadow: `0 0 0 2px ${meta.color}60, 0 0 30px ${meta.glow}, 0 0 60px ${meta.glow.replace("0.3", "0.12")}`,
-          }}
+          style={{ boxShadow: `0 0 0 2px ${meta.color}60, 0 0 20px ${meta.glow}` }}
         />
       )}
 
       <div
-        className="relative rounded-xl overflow-hidden transition-all duration-150"
+        className="relative rounded-xl overflow-hidden transition-all duration-150 bg-white border shadow-md"
         style={{
-          background:       `${meta.gradient}, linear-gradient(135deg,rgba(8,8,18,0.92),rgba(5,5,12,0.96))`,
-          border:           selected ? `1.5px solid ${meta.color}90` : `1px solid ${meta.color}30`,
-          boxShadow:        selected
-            ? `0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)`
-            : `0 4px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)`,
-          backdropFilter:   "blur(8px)",
+          borderColor: selected ? meta.color : "rgba(0,0,0,0.1)",
+          boxShadow: selected
+            ? `0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px ${meta.color}30`
+            : "0 2px 8px rgba(0,0,0,0.06)",
         }}
       >
-        {/* Gradient top accent bar */}
+        {/* Color top accent bar */}
         <div
           className="h-0.5 w-full"
-          style={{
-            background: `linear-gradient(90deg,${meta.color},${meta.color}40,transparent)`,
-            opacity:    selected ? 1 : 0.6,
-          }}
+          style={{ background: `linear-gradient(90deg,${meta.color},${meta.color}60,transparent)` }}
         />
 
-        {/* Body */}
         <div className="flex items-center gap-3 px-3.5 py-3">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-            style={{
-              background: `${meta.color}18`,
-              border:     `1px solid ${meta.color}40`,
-              boxShadow:  `0 0 12px ${meta.color}20`,
-            }}
+            style={{ background: `${meta.color}12`, border: `1px solid ${meta.color}30` }}
           >
             <Icon size={14} style={{ color: meta.color }} />
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-semibold text-[#e2e8f0] leading-none truncate">{node.label}</p>
+            <p className="text-[12px] font-semibold text-slate-800 leading-none truncate">{node.label}</p>
             {node.subtitle && (
-              <p className="text-[10px] text-[#475569] mt-0.5 truncate">{node.subtitle}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5 truncate">{node.subtitle}</p>
             )}
           </div>
 
@@ -160,7 +146,7 @@ function NodeCard({ node, selected, onSelect, onDragStart, onDragStartTouch, onD
             <button
               onMouseDown={(e) => { e.stopPropagation(); onDelete(); }}
               onTouchStart={(e) => { e.stopPropagation(); onDelete(); }}
-              className="opacity-0 group-hover/node:opacity-100 transition-all w-5 h-5 rounded flex items-center justify-center text-[#475569] hover:text-red-400 hover:bg-red-400/10"
+              className="opacity-0 group-hover/node:opacity-100 transition-all w-5 h-5 rounded flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50"
             >
               <Trash2 size={11} />
             </button>
@@ -169,8 +155,8 @@ function NodeCard({ node, selected, onSelect, onDragStart, onDragStartTouch, onD
 
         {node.type === "condition" && (
           <div className="flex justify-between px-3.5 pb-2.5 text-[10px] font-semibold">
-            <span style={{ color: "#00ff94" }}>↗ Yes</span>
-            <span style={{ color: "#f87171" }}>↘ No</span>
+            <span className="text-emerald-600">↗ Yes</span>
+            <span className="text-red-500">↘ No</span>
           </div>
         )}
       </div>
@@ -178,12 +164,8 @@ function NodeCard({ node, selected, onSelect, onDragStart, onDragStartTouch, onD
       {/* Input port */}
       {node.type !== "start" && (
         <div
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full"
-          style={{
-            background:  "#1a1a2e",
-            border:      `2px solid ${meta.color}60`,
-            boxShadow:   `0 0 6px ${meta.color}40`,
-          }}
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 bg-white"
+          style={{ borderColor: `${meta.color}70` }}
         />
       )}
 
@@ -191,18 +173,13 @@ function NodeCard({ node, selected, onSelect, onDragStart, onDragStartTouch, onD
       {node.type !== "end" && (
         node.type === "condition" ? (
           <>
-            <div className="absolute right-0 top-[35%] translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
-              style={{ background: "#00ff94", border: "2px solid #1a1a2e", boxShadow: "0 0 8px rgba(0,255,148,0.6)" }} />
-            <div className="absolute right-0 top-[65%] translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
-              style={{ background: "#f87171", border: "2px solid #1a1a2e", boxShadow: "0 0 8px rgba(248,113,113,0.6)" }} />
+            <div className="absolute right-0 top-[35%] translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm" />
+            <div className="absolute right-0 top-[65%] translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow-sm" />
           </>
         ) : (
-          <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
-            style={{
-              background:  meta.color,
-              border:      "2px solid #1a1a2e",
-              boxShadow:   `0 0 8px ${meta.glow}`,
-            }}
+          <div
+            className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow-sm"
+            style={{ background: meta.color }}
           />
         )
       )}
@@ -211,7 +188,7 @@ function NodeCard({ node, selected, onSelect, onDragStart, onDragStartTouch, onD
 }
 
 /* ══════════════════════════════════════════════
-   Sidebar — Node type card
+   Sidebar Node Card — Light
 ══════════════════════════════════════════════ */
 function SidebarNodeCard({ type, meta, onClick }: {
   type: NodeType;
@@ -222,51 +199,33 @@ function SidebarNodeCard({ type, meta, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="group relative flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-all duration-150 overflow-hidden"
-      style={{
-        background: "rgba(255,255,255,0.02)",
-        border:     `1px solid ${meta.color}18`,
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = `${meta.color}0a`;
-        (e.currentTarget as HTMLButtonElement).style.borderColor = `${meta.color}40`;
-        (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 0 16px ${meta.glow.replace("0.3","0.12")}`;
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.02)";
-        (e.currentTarget as HTMLButtonElement).style.borderColor = `${meta.color}18`;
-        (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
-      }}
+      className="group relative flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-all duration-150 overflow-hidden bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50/80"
     >
       {/* Left color strip */}
       <div
         className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r-full"
-        style={{ background: meta.color, boxShadow: `0 0 6px ${meta.color}` }}
+        style={{ background: meta.color }}
       />
 
       <div
         className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all group-hover:scale-110"
-        style={{
-          background: `${meta.color}18`,
-          border:     `1px solid ${meta.color}35`,
-          boxShadow:  `0 0 10px ${meta.color}15`,
-        }}
+        style={{ background: `${meta.color}12`, border: `1px solid ${meta.color}30` }}
       >
         <Icon size={13} style={{ color: meta.color }} />
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-semibold" style={{ color: meta.color }}>{meta.label}</p>
-        <p className="text-[10px] text-[#334155] truncate leading-snug mt-0.5">{meta.desc}</p>
+        <p className="text-[12px] font-semibold text-slate-800">{meta.label}</p>
+        <p className="text-[10px] text-slate-400 truncate leading-snug mt-0.5">{meta.desc}</p>
       </div>
 
-      <Plus size={11} className="shrink-0 text-[#334155] group-hover:text-[#64748b] transition-colors" />
+      <Plus size={11} className="shrink-0 text-slate-300 group-hover:text-slate-500 transition-colors" />
     </button>
   );
 }
 
 /* ══════════════════════════════════════════════
-   Main WorkflowBuilder
+   Main WorkflowBuilder — Light Theme
 ══════════════════════════════════════════════ */
 export function WorkflowBuilder() {
   const [nodes, setNodes]           = useState<WFNode[]>(DEFAULT_NODES);
@@ -314,7 +273,7 @@ export function WorkflowBuilder() {
     window.addEventListener("touchend", onEnd);
   }, [nodes, zoom]);
 
-  /* ── Canvas pan (mouse) ── */
+  /* ── Canvas pan ── */
   const startPan = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest(".node-card")) return;
     setIsPanning(true);
@@ -349,7 +308,6 @@ export function WorkflowBuilder() {
     setZoom((z) => Math.min(160, Math.max(30, z - e.deltaY * 0.05)));
   }, []);
 
-  /* ── Add node ── */
   const addNode = (type: NodeType) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     const scale = zoom / 100;
@@ -376,26 +334,11 @@ export function WorkflowBuilder() {
   return (
     <div className="flex h-full overflow-hidden">
 
-      {/* ════════════════════════════
-          LEFT SIDEBAR (desktop)
-      ════════════════════════════ */}
-      <aside
-        className="hidden sm:flex flex-col w-52 shrink-0 py-4 gap-1.5 overflow-y-auto"
-        style={{
-          background:   "rgba(6,6,14,0.98)",
-          borderRight:  "1px solid rgba(255,255,255,0.06)",
-          boxShadow:    "4px 0 20px rgba(0,0,0,0.3)",
-        }}
-      >
-        {/* Sidebar heading */}
+      {/* LEFT SIDEBAR — Light */}
+      <aside className="hidden sm:flex flex-col w-52 shrink-0 py-4 gap-1.5 overflow-y-auto bg-white border-r border-slate-200">
         <div className="px-4 mb-3">
-          <p
-            className="text-[10px] font-black tracking-widest uppercase"
-            style={{ background: "linear-gradient(90deg,#00f2ff,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
-          >
-            Node Types
-          </p>
-          <p className="text-[9px] text-[#334155] mt-0.5">Click to add to canvas</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Node Types</p>
+          <p className="text-[9px] text-slate-400 mt-0.5">Click to add to canvas</p>
         </div>
 
         <div className="px-2 space-y-1">
@@ -404,112 +347,67 @@ export function WorkflowBuilder() {
           ))}
         </div>
 
-        {/* Divider */}
-        <div className="mx-4 my-3 h-px" style={{ background: "linear-gradient(90deg,transparent,rgba(0,242,255,0.15),transparent)" }} />
+        <div className="mx-4 my-3 h-px bg-slate-100" />
 
-        {/* Tips */}
         <div className="px-4 space-y-2.5">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#334155]">Tips</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Tips</p>
           {[
             { icon: MousePointer2, text: "Drag nodes to reposition" },
             { icon: Zap,           text: "Scroll to zoom in/out"    },
           ].map(({ icon: TipIcon, text }) => (
-            <div key={text} className="flex items-center gap-2 text-[10px] text-[#334155]">
-              <TipIcon size={10} className="shrink-0 text-[#475569]" />
+            <div key={text} className="flex items-center gap-2 text-[10px] text-slate-400">
+              <TipIcon size={10} className="shrink-0 text-slate-300" />
               {text}
             </div>
           ))}
         </div>
       </aside>
 
-      {/* ════════════════════════════
-          CANVAS COLUMN
-      ════════════════════════════ */}
+      {/* CANVAS COLUMN */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
-        {/* ── Toolbar ── */}
-        <div
-          className="flex items-center justify-between px-4 py-2.5 shrink-0 gap-3 flex-wrap"
-          style={{
-            background:   "rgba(6,6,14,0.97)",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            boxShadow:    "0 4px 20px rgba(0,0,0,0.4)",
-          }}
-        >
-          {/* Title */}
+        {/* Toolbar — Light */}
+        <div className="flex items-center justify-between px-4 py-2.5 shrink-0 gap-3 flex-wrap bg-white/80 backdrop-blur border-b border-slate-200">
           <div className="flex items-center gap-2.5">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: "rgba(0,242,255,0.1)", border: "1px solid rgba(0,242,255,0.25)", boxShadow: "0 0 12px rgba(0,242,255,0.15)" }}
-            >
-              <GitBranch size={13} className="text-[#00f2ff]" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 border border-slate-200">
+              <GitBranch size={13} className="text-slate-600" />
             </div>
             <div>
-              <span
-                className="text-[13px] font-black tracking-wide"
-                style={{ background: "linear-gradient(90deg,#00f2ff,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
-              >
-                Conversation Flow
-              </span>
-              <span className="ml-2 text-[11px] text-[#334155]">
+              <span className="text-[13px] font-bold tracking-wide text-slate-800">Conversation Flow</span>
+              <span className="ml-2 text-[11px] text-slate-400">
                 {nodes.length} nodes · {edges.length} edges
               </span>
             </div>
           </div>
 
-          {/* Controls */}
           <div className="flex items-center gap-1.5">
-            {/* Zoom buttons */}
-            <div
-              className="flex items-center gap-1 px-2 py-1 rounded-lg"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-            >
-              <button
-                onClick={() => setZoom((z) => Math.max(30, z - 10))}
-                className="w-6 h-6 flex items-center justify-center rounded text-[#64748b] hover:text-[#00f2ff] transition-all hover:bg-[rgba(0,242,255,0.08)]"
-              >
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200">
+              <button onClick={() => setZoom((z) => Math.max(30, z - 10))}
+                className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all">
                 <ZoomOut size={12} />
               </button>
-              <span className="text-[11px] text-[#64748b] w-9 text-center tabular-nums font-mono">{zoom}%</span>
-              <button
-                onClick={() => setZoom((z) => Math.min(160, z + 10))}
-                className="w-6 h-6 flex items-center justify-center rounded text-[#64748b] hover:text-[#00f2ff] transition-all hover:bg-[rgba(0,242,255,0.08)]"
-              >
+              <span className="text-[11px] text-slate-600 w-9 text-center tabular-nums font-mono">{zoom}%</span>
+              <button onClick={() => setZoom((z) => Math.min(160, z + 10))}
+                className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all">
                 <ZoomIn size={12} />
               </button>
             </div>
 
-            <div className="w-px h-5 bg-white/[0.07]" />
+            <div className="w-px h-5 bg-slate-200" />
 
-            {/* Reset */}
-            <button
-              onClick={reset}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "#64748b" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#94a3b8"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.14)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 12px rgba(255,255,255,0.04)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#64748b"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.07)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "none"; }}
-            >
+            <button onClick={reset}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300">
               <RotateCcw size={11} /> Reset
             </button>
 
-            {/* Export */}
-            <button
-              onClick={exportJSON}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-              style={{
-                background: "linear-gradient(90deg,rgba(0,242,255,0.15),rgba(168,85,247,0.15))",
-                border:     "1px solid rgba(0,242,255,0.3)",
-                color:      "#00f2ff",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 20px rgba(0,242,255,0.2)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,242,255,0.5)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "none"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,242,255,0.3)"; }}
-            >
+            <button onClick={exportJSON}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 hover:border-blue-300">
               <Download size={11} /> Export JSON
             </button>
           </div>
         </div>
 
-        {/* ── Canvas ── */}
+        {/* Canvas — Light bg-slate-50 with subtle dot grid */}
         <div
           ref={canvasRef}
           className={cn("relative flex-1 overflow-hidden", isPanning ? "cursor-grabbing" : "cursor-default")}
@@ -518,24 +416,13 @@ export function WorkflowBuilder() {
           onWheel={handleWheel}
           onClick={() => setSelectedId(null)}
           style={{
-            /* Cyber-grid: neon dots at intersections + subtle grid lines */
-            background: "#04040c",
+            background: "#f8fafc",
             backgroundImage: `
-              radial-gradient(circle at 25% 20%, rgba(0,242,255,0.045) 0%, transparent 45%),
-              radial-gradient(circle at 78% 75%, rgba(168,85,247,0.04) 0%, transparent 45%),
-              radial-gradient(circle, rgba(0,242,255,0.18) 1px, transparent 1px),
-              linear-gradient(rgba(0,242,255,0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(0,242,255,0.03) 1px, transparent 1px)
+              radial-gradient(circle, rgba(148,163,184,0.3) 1px, transparent 1px)
             `,
-            backgroundSize: "100% 100%, 100% 100%, 32px 32px, 32px 32px, 32px 32px",
+            backgroundSize: "24px 24px",
           }}
         >
-          {/* Vignette overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: "radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(4,4,12,0.6) 100%)" }}
-          />
-
           {/* Zoom + pan transform group */}
           <div
             style={{ position: "absolute", inset: 0, transformOrigin: "0 0", transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})` }}
@@ -543,17 +430,17 @@ export function WorkflowBuilder() {
             {/* SVG edge layer */}
             <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible", pointerEvents: "none" }}>
               <defs>
-                {/* Arrow markers per node type */}
-                {(Object.entries(NODE_META) as [NodeType, typeof NODE_META[NodeType]][]).map(([type, meta]) => (
+                {/* Arrow markers per node type - slate colors */}
+                {(Object.entries(NODE_META) as [NodeType, typeof NODE_META[NodeType]][]).map(([type]) => (
                   <marker key={type} id={`arrow-${type}`} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                    <path d="M0,0.5 L0,6.5 L6.5,3.5 z" fill={meta.color} opacity="0.8" />
+                    <path d="M0,0.5 L0,6.5 L6.5,3.5 z" fill="#94a3b8" opacity="0.8" />
                   </marker>
                 ))}
                 <marker id="arrow-yes" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                  <path d="M0,0.5 L0,6.5 L6.5,3.5 z" fill="#00ff94" opacity="0.9" />
+                  <path d="M0,0.5 L0,6.5 L6.5,3.5 z" fill="#10b981" opacity="0.9" />
                 </marker>
                 <marker id="arrow-no" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                  <path d="M0,0.5 L0,6.5 L6.5,3.5 z" fill="#f87171" opacity="0.9" />
+                  <path d="M0,0.5 L0,6.5 L6.5,3.5 z" fill="#ef4444" opacity="0.9" />
                 </marker>
               </defs>
 
@@ -563,46 +450,30 @@ export function WorkflowBuilder() {
                 if (!fromNode || !toNode) return null;
                 const path     = calcEdgePath(fromNode, toNode, edge.fromPort);
                 const mid      = edgeMid(fromNode, toNode, edge.fromPort);
-                const fromMeta = NODE_META[fromNode.type];
-                const edgeColor = edge.fromPort === "yes" ? "#00ff94" : edge.fromPort === "no" ? "#f87171" : fromMeta.color;
+                const edgeColor = edge.fromPort === "yes" ? "#10b981" : edge.fromPort === "no" ? "#ef4444" : "#94a3b8";
                 const arrowId  = edge.fromPort === "yes" ? "yes" : edge.fromPort === "no" ? "no" : toNode.type;
                 const dur      = 1.0 + Math.random() * 0.6;
 
                 return (
                   <g key={edge.id}>
-                    {/* Wide glow shadow */}
-                    <path d={path} fill="none" stroke={edgeColor} strokeWidth="8" strokeOpacity="0.04" />
-                    {/* Medium glow */}
-                    <path d={path} fill="none" stroke={edgeColor} strokeWidth="3" strokeOpacity="0.1" />
+                    {/* Shadow */}
+                    <path d={path} fill="none" stroke={edgeColor} strokeWidth="2" strokeOpacity="0.08" />
                     {/* Main wire */}
-                    <path
-                      d={path} fill="none"
-                      stroke={edgeColor} strokeWidth="1.5" strokeOpacity="0.45"
-                      markerEnd={`url(#arrow-${arrowId})`}
-                    />
+                    <path d={path} fill="none" stroke={edgeColor} strokeWidth="1.5" strokeOpacity="0.5" markerEnd={`url(#arrow-${arrowId})`} />
                     {/* Animated data pulse */}
-                    <path
-                      d={path} fill="none"
-                      stroke={edgeColor} strokeWidth="2"
-                      strokeOpacity="0.9" strokeDasharray="5 22"
-                      strokeLinecap="round"
-                    >
+                    <path d={path} fill="none" stroke={edgeColor} strokeWidth="2" strokeOpacity="0.7" strokeDasharray="5 22" strokeLinecap="round">
                       <animate attributeName="stroke-dashoffset" from="27" to="0" dur={`${dur}s`} repeatCount="indefinite" />
                     </path>
-                    {/* Traveling dot (data packet) */}
-                    <circle r="3" fill={edgeColor} opacity="0.9" style={{ filter: `drop-shadow(0 0 4px ${edgeColor})` }}>
+                    {/* Traveling dot */}
+                    <circle r="2.5" fill={edgeColor} opacity="0.7">
                       <animateMotion dur={`${dur * 1.5}s`} repeatCount="indefinite" path={path} />
                     </circle>
 
                     {/* Edge label */}
                     {edge.label && (
                       <g transform={`translate(${mid.x},${mid.y})`}>
-                        <rect x="-18" y="-9" width="36" height="18" rx="5"
-                          fill="#06060e" stroke={edgeColor} strokeOpacity="0.45" strokeWidth="1"
-                          style={{ filter: `drop-shadow(0 0 6px ${edgeColor}50)` }}
-                        />
-                        <text textAnchor="middle" dominantBaseline="middle"
-                          fill={edgeColor} fontSize="9" fontWeight="800" fontFamily="monospace">
+                        <rect x="-18" y="-9" width="36" height="18" rx="5" fill="white" stroke={edgeColor} strokeOpacity="0.45" strokeWidth="1" className="shadow-sm" />
+                        <text textAnchor="middle" dominantBaseline="middle" fill={edgeColor} fontSize="9" fontWeight="800" fontFamily="monospace">
                           {edge.label}
                         </text>
                       </g>
@@ -629,7 +500,7 @@ export function WorkflowBuilder() {
           </div>
         </div>
 
-        {/* ── Selected node inspector ── */}
+        {/* Selected node inspector — Light */}
         <AnimatePresence>
           {selectedNode && (
             <motion.div
@@ -637,39 +508,28 @@ export function WorkflowBuilder() {
               animate={{ y: 0, opacity: 1 }}
               exit={{   y: 56, opacity: 0 }}
               transition={{ type: "spring", stiffness: 360, damping: 32 }}
-              className="shrink-0 flex items-center gap-4 px-5 py-3 flex-wrap"
-              style={{
-                background:  "rgba(6,6,14,0.99)",
-                borderTop:   `1px solid ${NODE_META[selectedNode.type].color}35`,
-                boxShadow:   `0 -4px 20px ${NODE_META[selectedNode.type].glow.replace("0.3","0.08")}`,
-              }}
+              className="shrink-0 flex items-center gap-4 px-5 py-3 flex-wrap bg-white border-t border-slate-200"
             >
               <div
                 className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                style={{
-                  background: `${NODE_META[selectedNode.type].color}15`,
-                  border:     `1px solid ${NODE_META[selectedNode.type].color}35`,
-                  boxShadow:  `0 0 12px ${NODE_META[selectedNode.type].glow}`,
-                }}
+                style={{ background: `${NODE_META[selectedNode.type].color}12`, border: `1px solid ${NODE_META[selectedNode.type].color}30` }}
               >
                 {(() => { const I = NODE_META[selectedNode.type].icon; return <I size={14} style={{ color: NODE_META[selectedNode.type].color }} />; })()}
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-semibold" style={{ color: NODE_META[selectedNode.type].color }}>
-                  {selectedNode.label}
-                </p>
-                <p className="text-[11px] text-[#475569]">{selectedNode.subtitle}</p>
+                <p className="text-[13px] font-semibold text-slate-800">{selectedNode.label}</p>
+                <p className="text-[11px] text-slate-400">{selectedNode.subtitle}</p>
               </div>
 
-              <div className="hidden sm:flex items-center gap-4 text-[11px] text-[#334155] font-mono">
-                <span>id: <span className="text-[#475569]">{selectedNode.id}</span></span>
-                <span>x: <span className="text-[#475569]">{Math.round(selectedNode.x)}</span></span>
-                <span>y: <span className="text-[#475569]">{Math.round(selectedNode.y)}</span></span>
+              <div className="hidden sm:flex items-center gap-4 text-[11px] text-slate-400 font-mono">
+                <span>id: <span className="text-slate-500">{selectedNode.id}</span></span>
+                <span>x: <span className="text-slate-500">{Math.round(selectedNode.x)}</span></span>
+                <span>y: <span className="text-slate-500">{Math.round(selectedNode.y)}</span></span>
               </div>
 
               <button onClick={() => setSelectedId(null)}
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[#334155] hover:text-[#94a3b8] hover:bg-white/[0.06] transition-all">
+                className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
                 <X size={12} />
               </button>
             </motion.div>
@@ -677,64 +537,41 @@ export function WorkflowBuilder() {
         </AnimatePresence>
       </div>
 
-      {/* ════════════════════════════
-          MOBILE FAB + DRAWER
-      ════════════════════════════ */}
+      {/* MOBILE FAB + DRAWER */}
       <div className="sm:hidden">
-        {/* Floating plus button */}
         <button
           onClick={() => setMobileDrawer(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95"
-          style={{
-            background: "linear-gradient(135deg,#00f2ff,#a855f7)",
-            boxShadow:  "0 4px 24px rgba(0,242,255,0.5), 0 0 40px rgba(168,85,247,0.3)",
-          }}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 bg-blue-600 text-white shadow-lg"
         >
-          <Plus size={22} style={{ color: "#050508" }} />
+          <Plus size={22} />
         </button>
 
-        {/* Bottom drawer */}
         <AnimatePresence>
           {mobileDrawer && (
             <>
-              {/* Backdrop */}
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
                 onClick={() => setMobileDrawer(false)}
               />
-              {/* Sheet */}
               <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", stiffness: 320, damping: 30 }}
-                className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-hidden"
-                style={{
-                  background:   "rgba(8,8,18,0.98)",
-                  border:       "1px solid rgba(0,242,255,0.15)",
-                  borderBottom: "none",
-                  boxShadow:    "0 -8px 40px rgba(0,0,0,0.6)",
-                  paddingBottom: "env(safe-area-inset-bottom,16px)",
-                }}
+                className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-hidden bg-white border border-slate-200 shadow-xl"
               >
-                {/* Handle */}
                 <div className="flex justify-center pt-3 pb-2">
-                  <div className="w-10 h-1 rounded-full bg-white/10" />
+                  <div className="w-10 h-1 rounded-full bg-slate-200" />
                 </div>
 
-                {/* Header */}
                 <div className="flex items-center justify-between px-5 pb-3">
-                  <p className="text-[12px] font-black uppercase tracking-widest"
-                    style={{ background: "linear-gradient(90deg,#00f2ff,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                    Add Node
-                  </p>
-                  <button onClick={() => setMobileDrawer(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#475569] hover:text-[#94a3b8] bg-white/[0.05]">
+                  <p className="text-[12px] font-bold uppercase tracking-widest text-slate-700">Add Node</p>
+                  <button onClick={() => setMobileDrawer(false)} className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 bg-slate-100">
                     <X size={13} />
                   </button>
                 </div>
 
-                {/* Node chips */}
                 <div className="grid grid-cols-2 gap-2.5 px-4 pb-6">
                   {(Object.entries(NODE_META) as [NodeType, typeof NODE_META[NodeType]][]).map(([type, meta]) => {
                     const Icon = meta.icon;
@@ -742,20 +579,15 @@ export function WorkflowBuilder() {
                       <button
                         key={type}
                         onClick={() => addNode(type)}
-                        className="flex items-center gap-2.5 p-3.5 rounded-2xl text-left active:scale-95 transition-all"
-                        style={{
-                          background: `${meta.color}0a`,
-                          border:     `1px solid ${meta.color}30`,
-                          boxShadow:  `0 0 16px ${meta.glow.replace("0.3","0.08")}`,
-                        }}
+                        className="flex items-center gap-2.5 p-3.5 rounded-2xl text-left active:scale-95 transition-all bg-white border border-slate-200 hover:border-slate-300"
                       >
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                          style={{ background: `${meta.color}20`, border: `1px solid ${meta.color}40` }}>
+                          style={{ background: `${meta.color}12`, border: `1px solid ${meta.color}30` }}>
                           <Icon size={15} style={{ color: meta.color }} />
                         </div>
                         <div>
-                          <p className="text-[12px] font-bold" style={{ color: meta.color }}>{meta.label}</p>
-                          <p className="text-[10px] text-[#334155] leading-tight mt-0.5">{meta.desc.slice(0, 20)}…</p>
+                          <p className="text-[12px] font-bold text-slate-800">{meta.label}</p>
+                          <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{meta.desc}</p>
                         </div>
                       </button>
                     );

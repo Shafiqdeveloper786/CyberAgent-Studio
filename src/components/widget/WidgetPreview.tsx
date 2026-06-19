@@ -126,18 +126,14 @@ export function WidgetPreview() {
     <div className="flex flex-col h-full">
       {/* ── Browser chrome ── */}
       <div
-        className="flex-1 rounded-xl overflow-hidden flex flex-col"
+        className="flex-1 rounded-xl overflow-hidden flex flex-col bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-xl"
         style={{
-          background: "#0d0d12",
-          border:     "1px solid rgba(255,255,255,0.08)",
-          boxShadow:  "0 0 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
           minHeight:  0,
         }}
       >
         {/* Tab bar */}
         <div
-          className="shrink-0 flex items-center gap-2 px-4 py-3"
-          style={{ background: "#141418", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+          className="shrink-0 flex items-center gap-2 px-4 py-3 bg-slate-100/80 border-b border-slate-200/60"
         >
           <div className="flex items-center gap-1.5">
             {t.browserDotColors.map((c, i) => (
@@ -145,14 +141,12 @@ export function WidgetPreview() {
             ))}
           </div>
           <div
-            className="mx-2 px-3 py-1 rounded-t text-[11px] text-[#64748b] flex-1 max-w-[180px]"
-            style={{ background: "rgba(255,255,255,0.05)" }}
+            className="mx-2 px-3 py-1 rounded-t text-[11px] font-semibold text-slate-900 flex-1 max-w-[180px] bg-white/95 border-t border-x border-slate-200/60"
           >
             Live Preview
           </div>
           <div
-            className="flex-1 h-6 max-w-[220px] rounded px-2 flex items-center text-[11px] text-[#334155]"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+            className="flex-1 h-6 max-w-[220px] rounded px-2 flex items-center text-[11px] text-slate-600 bg-slate-200/40 border border-slate-200/60"
           >
             cyberagent-studio.com
           </div>
@@ -160,8 +154,8 @@ export function WidgetPreview() {
 
         {/* Browser content */}
         <div
-          className="flex-1 flex items-center justify-center overflow-hidden p-4"
-          style={{ background: "rgba(255,255,255,0.01)", minHeight: 0 }}
+          className="flex-1 flex items-center justify-center overflow-hidden p-4 bg-slate-50/50"
+          style={{ minHeight: 0 }}
         >
           {/* ── Chat Widget ── */}
           <div
@@ -171,7 +165,9 @@ export function WidgetPreview() {
               border:     `1px solid ${t.widgetBorder}`,
               maxWidth:   "min(360px, 100%)",
               height:     "min(520px, 100%)",
-              boxShadow:  config.theme === "cyberpunk"
+              boxShadow:  config.theme === "corporate-light"
+                ? `0 0 40px ${config.accentColor}10, 0 24px 64px rgba(0,0,0,0.12)`
+                : config.theme === "cyberpunk"
                 ? `0 0 40px ${config.accentColor}18, 0 24px 64px rgba(0,0,0,0.6)`
                 : "0 24px 64px rgba(0,0,0,0.4)",
             }}

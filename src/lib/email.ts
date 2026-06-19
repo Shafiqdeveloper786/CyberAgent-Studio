@@ -93,16 +93,16 @@ function buildOtpHtml(otp: string, to: string): string {
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
   <title>Your CyberAgent Studio Code</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0a0a12;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-text-size-adjust:100%;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0a0a12;">
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-text-size-adjust:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;">
   <tr>
     <td align="center" style="padding:40px 16px;">
       <!-- Card -->
-      <table role="presentation" width="100%" style="max-width:520px;background-color:#0f0f1a;border:1px solid #1e2a3a;border-radius:16px;overflow:hidden;">
+      <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
 
         <!-- Accent bar -->
         <tr>
-          <td style="height:4px;background:linear-gradient(90deg,#004d59,#00f2ff,#a855f7,#004d59);">&nbsp;</td>
+          <td style="height:4px;background:#2563eb;">&nbsp;</td>
         </tr>
 
         <!-- Header -->
@@ -110,8 +110,8 @@ function buildOtpHtml(otp: string, to: string): string {
           <td align="center" style="padding:36px 40px 20px;">
             <table role="presentation" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="background-color:#00f2ff12;border:1px solid #00f2ff40;border-radius:10px;padding:8px 18px;">
-                  <span style="color:#00f2ff;font-size:14px;font-weight:700;letter-spacing:0.5px;">&#9889; CyberAgent Studio</span>
+                <td style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 18px;">
+                  <span style="color:#2563eb;font-size:14px;font-weight:700;letter-spacing:0.5px;">&#9889; CyberAgent Studio</span>
                 </td>
               </tr>
             </table>
@@ -121,12 +121,12 @@ function buildOtpHtml(otp: string, to: string): string {
         <!-- Title -->
         <tr>
           <td align="center" style="padding:0 40px 8px;">
-            <h1 style="color:#e2e8f0;font-size:24px;font-weight:800;margin:0;letter-spacing:-0.3px;">
+            <h1 style="color:#0f172a;font-size:24px;font-weight:800;margin:0;letter-spacing:-0.3px;">
               Your Verification Code
             </h1>
             <p style="color:#64748b;font-size:14px;margin:10px 0 0;line-height:1.6;">
               Use the code below to complete sign-in.<br/>
-              Requested for: <span style="color:#94a3b8;">${to}</span>
+              Requested for: <span style="color:#334155;font-weight:600;">${to}</span>
             </p>
           </td>
         </tr>
@@ -136,8 +136,8 @@ function buildOtpHtml(otp: string, to: string): string {
           <td align="center" style="padding:28px 40px;">
             <table role="presentation" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="background-color:#00f2ff0d;border:2px solid #00f2ff50;border-radius:12px;padding:20px 44px;">
-                  <span style="color:#00f2ff;font-family:'Courier New',Courier,monospace;font-size:44px;font-weight:900;letter-spacing:14px;display:block;line-height:1;">
+                <td style="background-color:#f8fafc;border:2px solid #bfdbfe;border-radius:12px;padding:20px 44px;">
+                  <span style="color:#1e293b;font-family:'Courier New',Courier,monospace;font-size:44px;font-weight:900;letter-spacing:14px;display:block;line-height:1;">
                     ${otp}
                   </span>
                 </td>
@@ -151,8 +151,8 @@ function buildOtpHtml(otp: string, to: string): string {
           <td align="center" style="padding:0 40px 28px;">
             <table role="presentation" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="background-color:#f59e0b0d;border:1px solid #f59e0b30;border-radius:8px;padding:8px 16px;">
-                  <span style="color:#f59e0b;font-size:13px;font-weight:600;">
+                <td style="background-color:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:8px 16px;">
+                  <span style="color:#92400e;font-size:13px;font-weight:600;">
                     &#8987;&nbsp; Expires in <strong>10 minutes</strong>
                   </span>
                 </td>
@@ -165,7 +165,7 @@ function buildOtpHtml(otp: string, to: string): string {
         <tr>
           <td style="padding:0 40px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-              <tr><td style="border-top:1px solid #1e2a3a;font-size:0;">&nbsp;</td></tr>
+              <tr><td style="border-top:1px solid #e2e8f0;font-size:0;">&nbsp;</td></tr>
             </table>
           </td>
         </tr>
@@ -173,11 +173,11 @@ function buildOtpHtml(otp: string, to: string): string {
         <!-- Security note -->
         <tr>
           <td align="center" style="padding:20px 40px 32px;">
-            <p style="color:#334155;font-size:12px;margin:0;line-height:1.7;">
-              If you didn&apos;t request this, you can safely ignore this email.<br/>
+            <p style="color:#64748b;font-size:12px;margin:0;line-height:1.7;">
+              If you didn't request this, you can safely ignore this email.<br/>
               Never share this code with anyone &mdash; our team will never ask for it.
             </p>
-            <p style="color:#1e293b;font-size:11px;margin:10px 0 0;">
+            <p style="color:#94a3b8;font-size:11px;margin:10px 0 0;">
               &copy; 2025 CyberAgent Studio &mdash; AI Chatbot Builder
             </p>
           </td>
