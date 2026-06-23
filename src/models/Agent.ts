@@ -8,6 +8,7 @@ export interface IAgent extends Document {
   themeColor:         string;
   theme:              string;
   welcomeMessage:     string;
+  logoUrl:            string;
   apiKey:             string;
   messageCount:       number;
   lastMessageAt:      Date | null;
@@ -50,9 +51,14 @@ const AgentSchema = new Schema<IAgent>(
     theme: {
       type:    String,
       enum:    ["cyberpunk", "minimal-dark", "corporate-light"],
-      default: "cyberpunk",
+      default: "corporate-light",
     },
     welcomeMessage: {
+      type:    String,
+      default: "",
+      trim:    true,
+    },
+    logoUrl: {
       type:    String,
       default: "",
       trim:    true,

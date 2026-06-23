@@ -21,10 +21,10 @@ interface Options {
  * Minimal streaming chat hook — compatible with AI SDK v6's
  * toTextStreamResponse() which sends a plain text stream.
  *
- * Additions over the original:
- *  - Handles 429 "DAILY_LIMIT_REACHED" responses from /api/chat
- *  - Exposes isLimitReached + limitResetAt so WidgetChat can render a
- *    live countdown without full page context
+ * Additions:
+ *  - Handles 429 "DAILY_LIMIT_REACHED" responses
+ *  - Exposes isLimitReached + limitResetAt for live countdown
+ *  - Tracks ticketSubmitted + isTicketBookingInProgress for idempotency (TASK 2)
  */
 export function useLiveChat({ agentId, initialMessages = [] }: Options) {
   const [messages,       setMessages]       = useState<ChatMessage[]>(initialMessages);
@@ -33,7 +33,11 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
   const [isLimitReached, setIsLimitReached] = useState(false);
   const [limitResetAt,   setLimitResetAt]   = useState<string | null>(null);
   const [limitMessage,   setLimitMessage]   = useState<string | null>(null);
+  const [ticketSubmitted, setTicketSubmitted] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const ticketLockRef = useRef(false);
+  /* ── TASK 2: Idempotency lock — prevents concurrent createTicket calls ── */
+  const isBookingRef = useRef(false);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value),
@@ -52,8 +56,6 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
       const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: "user", content: text };
       const assistantId = `a-${Date.now()}`;
 
-      /* Push ONLY the user message — the assistant bubble is added lazily
-         when the first stream chunk arrives, eliminating the empty ghost bubble. */
       setMessages((prev) => [...prev, userMsg]);
 
       const history = [...messages, userMsg].map((m) => ({
@@ -64,11 +66,26 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
       abortRef.current?.abort();
       abortRef.current = new AbortController();
 
+      /* ── TASK 2: If ticket is locked, inject a "already submitted" message
+         at the client level to avoid any server-side call. ── */
+      if (ticketLockRef.current) {
+        setIsLoading(false);
+        setMessages((prev) => [
+          ...prev,
+          { id: assistantId, role: "assistant", content: "I have already submitted your request. Our team will contact you shortly." },
+        ]);
+        return;
+      }
+
       try {
         const res = await fetch("/api/chat", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ messages: history, agentId }),
+          body:    JSON.stringify({
+            messages: history,
+            agentId,
+            ticketLocked: ticketLockRef.current,
+          }),
           signal:  abortRef.current.signal,
         });
 
@@ -92,7 +109,6 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
             errBody.code === "LIMIT_EXCEEDED";
 
           if (isLimitError) {
-            /* No placeholder exists — push the limit bubble directly. */
             const limitMsg = errBody.message ?? "Daily message limit reached.";
             setMessages((prev) => [
               ...prev,
@@ -108,7 +124,6 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
             setLimitResetAt(errBody.resetAt ?? null);
             setLimitMessage(limitMsg);
           } else {
-            /* No placeholder — push the error message directly. */
             setMessages((prev) => [
               ...prev,
               {
@@ -125,6 +140,7 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
         const reader  = res.body!.getReader();
         const decoder = new TextDecoder();
         let   firstChunk = true;
+        let fullContent = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -132,8 +148,17 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
           const chunk = decoder.decode(value, { stream: true });
           if (!chunk) continue;
 
+          fullContent += chunk;
+
+          /* ── Detect ticket creation response → lock future calls ── */
+          if (fullContent.includes("successfully submitted") ||
+              fullContent.includes("being reviewed by our team") ||
+              fullContent.includes("Thank you! Your support ticket")) {
+            ticketLockRef.current = true;
+            setTicketSubmitted(true);
+          }
+
           if (firstChunk) {
-            /* First real content — create the assistant bubble now (no ghost) */
             firstChunk = false;
             setMessages((prev) => [
               ...prev,
@@ -149,13 +174,13 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
         }
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
-        /* No placeholder to update — push the error message directly. */
         setMessages((prev) => [
           ...prev,
           { id: assistantId, role: "assistant", content: "Network error. Please try again." },
         ]);
       } finally {
         setIsLoading(false);
+        isBookingRef.current = false;
       }
     },
     [input, isLoading, isLimitReached, messages, agentId]
@@ -166,6 +191,9 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
     setIsLimitReached(false);
     setLimitResetAt(null);
     setLimitMessage(null);
+    setTicketSubmitted(false);
+    ticketLockRef.current = false;
+    isBookingRef.current = false;
   }, [initialMessages]);
 
   return {
@@ -177,6 +205,7 @@ export function useLiveChat({ agentId, initialMessages = [] }: Options) {
     isLimitReached,
     limitResetAt,
     limitMessage,
+    ticketSubmitted,
     clearMessages,
   };
 }

@@ -1,6 +1,5 @@
 /**
- * Widget segment layout — applies dark background and full-height
- * containment for the iframe context.
+ * Widget segment layout — clean white theme for the iframe context.
  *
  * This file intentionally has NO <html> or <body> tags — those belong
  * only to src/app/layout.tsx (the root layout).  Adding them here would
@@ -16,9 +15,9 @@ export default function WidgetLayout({
   return (
     <div
       style={{
-        height:     "100dvh",   /* dvh = dynamic viewport height, works in iOS Safari */
+        height:     "100dvh",
         width:      "100%",
-        background: "#050508",
+        background: "#ffffff",
         overflow:   "hidden",
         margin:     0,
         padding:    0,

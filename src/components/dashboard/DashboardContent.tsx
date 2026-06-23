@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useAgentStore } from "@/store/agentStore";
 import { AgentSetup } from "./AgentSetup";
@@ -8,6 +8,7 @@ import { WidgetStyling } from "./WidgetStyling";
 import { EmbedCodeSection } from "./EmbedCodeSection";
 import { WidgetPreview } from "@/components/widget/WidgetPreview";
 import { SavedAgentsList, type SavedAgent } from "./SavedAgentsList";
+import { useAgents } from "@/lib/swr";
 
 /* Reusable structural section title matching corporate identity layout */
 function PanelTitle({ children }: { children: React.ReactNode }) {
@@ -25,42 +26,28 @@ export function DashboardContent() {
   const { data: session }            = useSession();
   const { loadAgent, activeAgentId } = useAgentStore();
 
-  /* Stable refs so fetchAgents doesn't re-create on every activeAgentId change,
-     which would cause a fetch-loop after auto-select fires.                  */
+  /* Stable refs so auto-select doesn't loop on activeAgentId change */
   const loadAgentRef      = useRef(loadAgent);
   const activeAgentIdRef  = useRef(activeAgentId);
   useEffect(() => { loadAgentRef.current     = loadAgent;    }, [loadAgent]);
   useEffect(() => { activeAgentIdRef.current = activeAgentId; }, [activeAgentId]);
 
-  const [agents,        setAgents]        = useState<SavedAgent[]>([]);
-  const [loadingAgents, setLoadingAgents] = useState(false);
+  const { data: agentsData, isLoading: loadingAgents, mutate: fetchAgents } = useAgents(session?.user?.id);
+  const agents = agentsData?.agents || [];
 
-  const fetchAgents = useCallback(async () => {
-    if (!session?.user?.id) return;
-    setLoadingAgents(true);
-    try {
-      const res = await fetch("/api/agents");
-      if (res.ok) {
-        const list = ((await res.json()) as { agents: SavedAgent[] }).agents ?? [];
-        setAgents(list);
-        /* Auto-select: on the 1-agent plan, bind the agent globally so all
-           pages (Knowledge Base, Analytics, Embed Code) work without the user
-           having to manually click a card first.                             */
-        if (!activeAgentIdRef.current && list.length > 0) {
-          loadAgentRef.current(list[0]);
-        }
-      }
-    } catch { /* silent */ } finally {
-      setLoadingAgents(false);
+  useEffect(() => {
+    if (agentsData?.agents && agentsData.agents.length > 0 && !activeAgentIdRef.current) {
+      loadAgentRef.current(agentsData.agents[0]);
     }
-  }, [session?.user?.id]);
-
-  useEffect(() => { fetchAgents(); }, [fetchAgents]);
+  }, [agentsData]);
 
   const handleDelete = useCallback(async (id: string) => {
-    setAgents((prev) => prev.filter((a) => a._id !== id));
-    const res = await fetch(`/api/agents/${id}`, { method: "DELETE" });
-    if (!res.ok) fetchAgents();
+    try {
+      await fetch(`/api/agents/${id}`, { method: "DELETE" });
+      fetchAgents();
+    } catch (err) {
+      console.error("Error deleting agent:", err);
+    }
   }, [fetchAgents]);
 
   const handleSelect = useCallback((agent: SavedAgent) => {

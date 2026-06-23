@@ -16,6 +16,7 @@ import dns       from "dns";
 import User              from "@/models/User";
 import VerificationToken from "@/models/VerificationToken";
 import Quota             from "@/models/Quota";
+import { startScheduler } from "@/lib/cron";
 
 /* ════════════════════════════════════════════════════
    Boot-time snapshot
@@ -270,6 +271,8 @@ export async function connectDB(): Promise<typeof mongoose> {
           `  DB   : ${mongoose.connection.name}`
         );
         await initCollections();
+        // Start background cron jobs now that DB is ready
+        startScheduler();
         return m;
       })
       .catch((err: Error) => {

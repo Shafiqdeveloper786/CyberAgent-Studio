@@ -1,297 +1,208 @@
 <div align="center">
 
-# 🪐 CyberAgent Studio
+# CyberAgent Studio
 
-### Next-Gen SaaS Dashboard for Building, Deploying, and Analyzing Autonomous AI Chat Agents
+**Enterprise-Grade AI Chatbot Builder & Management Platform**
 
-[![Live Demo](https://img.shields.io/badge/LIVE%20DEMO-cyber--agent--studio.vercel.app-00f2ff?style=for-the-badge&logo=vercel&logoColor=black)](https://cyber-agent-studio.vercel.app/)
-[![Next.js](https://img.shields.io/badge/Next.js-16.2-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-00ED64?style=for-the-badge&logo=mongodb&logoColor=black)](https://www.mongodb.com/atlas)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![License](https://img.shields.io/badge/License-MIT-a855f7?style=for-the-badge)](./LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://typescriptlang.org)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green?logo=mongodb)](https://mongodb.com)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](#)
 
 </div>
 
 ---
 
-## 🧠 System Overview
+## Overview
 
-**CyberAgent Studio** is an enterprise-grade AI chatbot pipeline and SaaS control tower built on the Next.js 16 App Router. It enables product teams to spin up, style, embed, and analyze autonomous AI chat agents — deployable on any website with a single `<script>` tag.
+CyberAgent Studio is a full-stack SaaS platform that enables businesses to create, configure, deploy, and manage AI-powered chatbot agents. Built with Next.js 16, TypeScript, and MongoDB Atlas, it provides an enterprise-ready solution with subscription billing, team management, real-time analytics, and embeddable widget deployment.
 
-The platform integrates a real-time RAG (Retrieval-Augmented Generation) pipeline backed by MongoDB Atlas vector storage, Groq's ultra-fast LLM inference engine, and a full workspace management suite — all wrapped in an immersive cyberpunk glassmorphic design system.
+## Key Features
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      CYBERAGENT STUDIO STACK                        │
-├──────────────────┬──────────────────┬──────────────────────────────┤
-│  FRONTEND        │  BACKEND         │  INFRASTRUCTURE               │
-│  Next.js 16      │  App Router API  │  MongoDB Atlas (Vector DB)    │
-│  Tailwind v4     │  NextAuth v4     │  Groq LLM (llama-3.3-70b)    │
-│  Framer Motion   │  Nodemailer SMTP │  HuggingFace Embeddings       │
-│  Lucide Icons    │  Mongoose ORM    │  Vercel Edge Network          │
-└──────────────────┴──────────────────┴──────────────────────────────┘
-```
+### 🤖 AI Agent Management
+- Create and configure custom AI chatbot agents with unique personas
+- Real-time widget preview with live styling customization
+- One-click embed code generation for any website
+- Knowledge base integration with document upload (PDF, TXT)
 
----
+### 📊 Analytics & Monitoring
+- Per-agent message volume tracking and resolution rate metrics
+- Admin dashboard with user growth charts, agent distribution, and system health
+- Automated weekly performance report emails delivered every Monday
 
-## ⚡ Core Feature Matrix
+### 🔐 Authentication & Security
+- Passwordless OTP authentication via email
+- Google OAuth integration
+- JWT-secured team invitation workflow
+- Role-based access control (User / Admin)
 
-| Feature | Description |
+### 💳 Subscription & Billing
+- Three-tier subscription model (Free / Pro / Enterprise)
+- Stripe integration for payment processing
+- Transaction history and payment management in admin panel
+- Daily message quota enforcement with automated limit notifications
+
+### 🔔 Real-Time Notifications
+- Bell icon notification center with unread badge count
+- Notification types: Welcome, Subscription, Limit Warning, System
+- Mark as read/unread, mark all as read
+
+### 👥 Team Management
+- Admin panel with user management (block/unblock, plan assignment)
+- Secure JWT-based invitation system with auto-registration
+- Agent-level metrics per team member
+
+### 📧 Professional Email System
+- Corporate-grade transactional email templates
+- OTP verification, team invitations, limit warnings, weekly reports
+- Gmail SMTP with App Password support
+
+## Tech Stack
+
+| Layer | Technology |
 |---|---|
-| 🤖 **AI Agent Builder** | Configure system prompts, model parameters, accent colors, and widget themes in a live preview editor |
-| 📡 **RAG Knowledge Base** | Upload PDF and text documents; auto-chunked, embedded, and stored for context-aware AI responses |
-| 📊 **Analytics Engine** | Per-agent message volume, lead conversion funnel tracking, and daily quota monitoring |
-| 🌐 **Universal Embed System** | One-line `<script>` injection deploys a floating neon chat widget to any website |
-| 🔑 **API Credentials Manager** | Dynamic `ca_live_` token generator with localStorage persistence and instant revocation |
-| 👥 **Team Workspace** | Seat-based access control, SMTP invite dispatch, and real-time localStorage sync |
-| 💳 **Billing & Checkout** | Multi-method payment UI with manual transfer fallback and Coming Soon modal intercept |
-| 🚨 **Danger Zone** | JSZip workspace archive download, ownership transfer confirmation flow, and session cleanup |
+| **Framework** | Next.js 16 (App Router, Turbopack) |
+| **Language** | TypeScript 5 |
+| **Database** | MongoDB Atlas (Mongoose ODM) |
+| **Authentication** | NextAuth.js (OTP + Google OAuth) |
+| **Styling** | Tailwind CSS 4 |
+| **Charts** | Recharts |
+| **Animations** | Framer Motion |
+| **Email** | Nodemailer (Gmail SMTP) |
+| **Payments** | Stripe API |
+| **Caching** | SWR (stale-while-revalidate) |
+| **Scheduling** | node-cron |
+| **Icons** | Lucide React |
 
----
-
-## 🔑 Highlighted Technical Capabilities
-
-**[⚡] CyberAgent Embedding Matrix**
-Zero-blocking global script injection using async loading to deploy floating neon chat widgets without page-load latency. A single `<script>` tag with `data-agent-id` and `data-accent-color` attributes activates the full widget — no build step, no framework dependency.
-
-**[👥] Robust Workspace Collaboration**
-Live team management engine tracking real-time seat allocations (`2 / 5 seats`), SMTP-dispatched workspace invitations via Gmail App Passwords, unique per-invite token links (`workspace-invite?token=...`), and immediate member revocation with localStorage sync propagated to the Danger Zone ownership transfer dropdown.
-
-**[🔑] Secure Credentials Protocol**
-Fully dynamic API key generator producing `ca_live_[hex32]` prefixed operational tokens — the `ca_` namespace deliberately bypasses GitHub Secret Scanning pattern libraries while remaining visually distinct from real third-party credentials.
-
-**[🚨] Hardened Danger Zone System**
-Industrial workspace backup utility using client-side JSZip (dynamic import — zero SSR footprint) to compile a real `.zip` archive containing:
-- `manifest.json` — active agent schemas, KB references, team roster, and settings snapshot
-- `knowledge_base_log.txt` — structured documentation of all indexed data assets
-
-The ownership transfer flow reads live team data from localStorage, presents a confirmation overlay, and mutates roles before syncing back — no server round-trip required.
-
-**[🎨] Premium Cyberpunk Design System**
-- Dark glassmorphic panels with `rgba` layering and `backdrop-blur`
-- Electric cyan glow (`#00f2ff`) as the primary neon accent
-- Purple (`#a855f7`) and emerald (`#00ff94`) secondary nodes
-- Framer Motion `AnimatePresence` for fluid state transitions
-- Fully responsive across mobile, tablet, and ultrawide viewports
-
----
-
-## 🚀 Local Setup & Installation
+## Getting Started
 
 ### Prerequisites
-
 - Node.js 20+
-- npm 9+ or pnpm
-- MongoDB Atlas cluster (free tier works)
-- Google Account with [App Password](https://myaccount.google.com/apppasswords) enabled
-- [Groq API key](https://console.groq.com/keys) (free)
+- MongoDB Atlas cluster
+- Gmail account with App Password
 
-### 1. Clone the Repository
+### Installation
 
 ```bash
-git clone https://github.com/Shafiqdeveloper786/CyberAgent-Studio.git
-cd CyberAgent-Studio
-```
-
-### 2. Install Dependencies
-
-```bash
+git clone https://github.com/your-org/cyberagent-studio.git
+cd cyberagent-studio
 npm install
 ```
 
-### 3. Configure Environment Variables
+### Environment Variables
 
-Create a `.env.local` file at the project root:
+Create `.env.local` in the project root:
 
 ```env
-# ── Authentication ────────────────────────────────────────
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-nextauth-secret-min-32-chars
+# MongoDB
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/CyberAgentStudio?retryWrites=true&w=majority
 
-# ── Google OAuth (optional) ───────────────────────────────
+# NextAuth
+NEXTAUTH_SECRET=your-nextauth-secret
+NEXTAUTH_URL=http://localhost:3000
+
+# Email (Gmail SMTP)
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=xxxx-xxxx-xxxx-xxxx
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+
+# Google OAuth
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 
-# ── MongoDB Atlas ─────────────────────────────────────────
-MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/<dbname>?retryWrites=true&w=majority
+# AI Provider
+OPENAI_API_KEY=your-openai-key
 
-# ── Nodemailer — Gmail SMTP ───────────────────────────────
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=your-gmail@gmail.com
-EMAIL_PASS=xxxx xxxx xxxx xxxx
-EMAIL_FROM=CyberAgent Studio <your-gmail@gmail.com>
+# Admin
+ADMIN_EMAIL=admin@yourdomain.com
 
-# ── Groq AI ───────────────────────────────────────────────
-GROQ_API_KEY=gsk_your-groq-api-key
+# Stripe
+STRIPE_SECRET_KEY=sk_...
 
-# ── HuggingFace (embedding fallback) ─────────────────────
-HF_API_TOKEN=hf_your-hf-token
+# Cron
+CRON_SECRET=your-cron-secret
 
-# ── Public base URL (SSR fallback) ───────────────────────
+# Base URL
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 ```
 
-> **Security notice:** `.env.local` is gitignored by the `.env*` rule. Never commit real credentials.
-
-### 4. Run Development Server
+### Development
 
 ```bash
 npm run dev
 ```
 
-Visit `http://localhost:3000` — the dashboard loads at `/dashboard`.
+Open [http://localhost:3000](http://localhost:3000).
 
-### 5. Production Build
+### Production Build
 
 ```bash
 npm run build
-npm run start
+npm start
 ```
 
-The build runs TypeScript type checks, compiles 26 routes, and generates optimized static assets. Expected build time: ~10–15 seconds.
-
----
-
-## 🗂️ Project Architecture
+## Project Structure
 
 ```
-cyberagent-studio/
-├── public/
-│   └── embed.js                  # Universal widget embed script (v10)
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── agents/           # Agent CRUD + apiKey management
-│   │   │   ├── chat/             # Groq streaming + RAG + quota enforcement
-│   │   │   ├── invite/           # Nodemailer SMTP team invitations
-│   │   │   ├── knowledge/        # Document ingestion + embedding pipeline
-│   │   │   └── analytics/        # Per-agent metrics aggregation
-│   │   ├── checkout/             # Subscription checkout with payment intercept
-│   │   ├── dashboard/            # Agent builder + widget preview
-│   │   ├── embed-code/           # Framework integration guides
-│   │   ├── knowledge-base/       # Document upload + RAG management
-│   │   ├── settings/             # Full settings suite (7 sections)
-│   │   ├── analytics/            # Analytics dashboard
-│   │   ├── widget/[agentId]/     # Standalone embeddable widget page
-│   │   └── auth/                 # OTP + Google OAuth login
-│   ├── components/
-│   │   ├── dashboard/            # AgentSetup, WidgetPreview, EmbedCodeSection
-│   │   ├── pricing/              # PricingModal with Coming Soon intercept
-│   │   ├── widget/               # WidgetChat (full-screen iframe target)
-│   │   └── layout/               # DashboardShell, Navbar, Sidebar
-│   ├── lib/
-│   │   ├── auth.ts               # NextAuth configuration
-│   │   ├── mailer.ts             # Nodemailer transporter singleton
-│   │   ├── mongodb.ts            # Mongoose connection with Atlas direct URI
-│   │   └── embeddings.ts         # HuggingFace embedding pipeline
-│   ├── models/                   # Mongoose schemas (Agent, User, Knowledge, Quota)
-│   ├── store/                    # Zustand global state (agentStore, authStore)
-│   └── hooks/
-│       └── useLiveChat.ts        # Streaming chat hook with rate-limit handling
-└── next.config.ts                # CORS headers, serverExternalPackages
+src/
+├── app/                  # Next.js App Router pages & API routes
+│   ├── admin/            # Admin dashboard
+│   ├── api/              # REST API endpoints
+│   │   ├── admin/        # Admin metrics, user management, weekly reports
+│   │   ├── agents/       # CRUD for AI agents
+│   │   ├── analytics/    # Analytics data endpoints
+│   │   ├── auth/         # OTP send/verify
+│   │   ├── chat/         # AI chat endpoint
+│   │   ├── invite/       # Team invitation system
+│   │   ├── knowledge/    # Knowledge base management
+│   │   └── notifications/# Notification CRUD
+│   ├── auth/             # Authentication page
+│   ├── dashboard/        # Main agent workspace
+│   ├── invite/           # Invitation landing page
+│   └── settings/         # User settings & team management
+├── components/           # Reusable React components
+│   ├── auth/             # Auth modal, login card, OTP verification
+│   ├── dashboard/        # Agent setup, saved agents, widget styling
+│   ├── layout/           # Sidebar, Navbar, DashboardShell
+│   └── ui/               # Shared UI primitives
+├── lib/                  # Utilities & services
+│   ├── auth.ts           # NextAuth configuration
+│   ├── cron.ts           # Background job scheduler
+│   ├── email.ts          # Email templates & sending
+│   ├── mongodb.ts        # Database connection singleton
+│   └── swr.ts            # SWR hooks & fetcher
+├── models/               # Mongoose schemas
+└── store/                # Zustand state management
 ```
 
----
+## API Routes
 
-## 🌐 Embedding an Agent
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/admin` | Admin dashboard metrics |
+| GET | `/api/admin/weekly-report` | Trigger weekly performance emails |
+| GET/POST | `/api/agents` | List/create agents |
+| PATCH/DELETE | `/api/agents/[id]` | Update/delete agent |
+| POST | `/api/chat` | AI chat completion |
+| POST | `/api/invite` | Generate team invitation |
+| POST | `/api/invite/accept` | Accept invitation |
+| GET | `/api/notifications` | Fetch user notifications |
+| POST | `/api/auth/send-otp` | Send OTP email |
+| POST | `/api/auth/verify-otp` | Verify OTP code |
 
-After creating an agent in the dashboard, grab your embed script from the **Agent Space → Embed & API** panel:
+## Deployment
 
-```html
-<!-- Paste before </body> on any HTML page -->
-<script
-  src="https://cyber-agent-studio.vercel.app/embed.js"
-  id="cyberagent-universal-script"
-  data-agent-id="YOUR_AGENT_ID"
-  data-accent-color="#00f2ff"
-  async>
-</script>
-```
-
-The widget loads asynchronously — zero page-speed impact. For Next.js, React Native, Flutter, or API-only integrations, visit the **Embed Code** page inside the dashboard.
-
----
-
-## 🔌 API Usage
-
-Call the streaming chat endpoint directly with your agent's API key:
-
-```typescript
-const res = await fetch("https://cyber-agent-studio.vercel.app/api/chat", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "x-api-key": "ca_live_your_api_key",
-  },
-  body: JSON.stringify({
-    agentId: "YOUR_AGENT_ID",
-    messages: [{ role: "user", content: "Hello" }],
-  }),
-});
-
-const reader = res.body.getReader();
-const decoder = new TextDecoder();
-let response = "";
-
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  response += decoder.decode(value, { stream: true });
-}
-```
-
-**Rate limits:** Free plan — 50 messages / agent / day. Resets at UTC midnight.
-**Auth:** Wrong or missing `x-api-key` returns `403`. Inactive agents return `200` with a localized message.
-
----
-
-## 🛡️ Security Architecture
-
-| Layer | Implementation |
-|---|---|
-| **Credentials isolation** | All secrets (`MONGODB_URI`, `EMAIL_PASS`, `GROQ_API_KEY`) accessed only in server-only files (`lib/`, `api/`) |
-| **Client env safety** | Only `NEXT_PUBLIC_` prefixed vars exposed to the browser bundle |
-| **XSS sanitization** | Incoming chat message content stripped of HTML tags before LLM injection |
-| **API key auth** | Per-agent `ca_live_` token validated on every `/api/chat` request |
-| **Rate limiting** | MongoDB Quota collection with unique `(agentId, date)` compound index |
-| **Git safety** | `.env*` gitignored; mock keys use `ca_` prefix to avoid secret scanner patterns |
-
----
-
-## 🚢 Deploying to Vercel
+Optimized for deployment on **Vercel**:
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
+npx vercel --prod
 ```
 
-Set all `.env.local` variables in the Vercel dashboard under **Project → Settings → Environment Variables**. The build runs `next build` automatically — no additional configuration required.
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/your-feature`
-3. Commit your changes: `git commit -m "feat: your feature description"`
-4. Push to the branch: `git push origin feat/your-feature`
-5. Open a Pull Request against `master`
-
----
-
-## 📄 License
-
-MIT © [Shafiqdeveloper786](https://github.com/Shafiqdeveloper786) — see [LICENSE](./LICENSE) for details.
+For self-hosted environments, ensure `CRON_SECRET` is set and configure an external scheduler (e.g., Upstash QStash) to call `GET /api/admin/weekly-report` weekly.
 
 ---
 
 <div align="center">
-
-Built with ⚡ by the CyberAgent Studio team · Powered by [Groq](https://groq.com) · Deployed on [Vercel](https://vercel.com)
-
+  <sub>Built with ❤️ by the CyberAgent Studio team</sub>
 </div>

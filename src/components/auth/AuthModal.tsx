@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Mail, Zap, ArrowRight, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
+import { X, Mail, ArrowRight, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
@@ -101,7 +102,7 @@ const stepV = {
 
 /* ── Component ── */
 export function AuthModal() {
-  const { authModalState, closeAuthModal, closeModal } = useAuthStore();
+  const { authModalState, closeAuthModal, closeModal, login } = useAuthStore();
   const router = useRouter();
 
   const [step,        setStep]       = useState<ModalStep>("email");
@@ -179,14 +180,19 @@ export function AuthModal() {
         setOtpError("Invalid or expired code. Please try again.");
         return;
       }
+      login({
+        email,
+        name: email.split("@")[0],
+        initials: email.slice(0, 2).toUpperCase(),
+      });
       setStep("success");
-      setTimeout(() => { router.push("/dashboard"); router.refresh(); closeModal(); }, 2000);
+      setTimeout(() => { router.push("/dashboard"); router.refresh(); closeModal(); }, 800);
     } catch {
       setOtpError("Verification failed. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [otp, email, router, closeModal]);
+  }, [otp, email, router, closeModal, login]);
 
   /* ── Resend OTP ── */
   const handleResend = useCallback(async () => {
@@ -225,7 +231,7 @@ export function AuthModal() {
             transition={{ duration: 0.25 }}
             className="fixed inset-0 z-[100]"
             style={{ background: "rgba(15,23,42,0.55)" }}
-            onClick={(e) => e.target === e.currentTarget && closeModal()}
+            /* Backdrop does NOT close modal — user must complete auth */
           />
 
           {/* ── Foreground modal portal (crisp, no blur) ── */}
@@ -239,14 +245,23 @@ export function AuthModal() {
             <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl p-10 relative overflow-hidden">
 
               {/* ── Header ── */}
-              <div className="flex flex-col items-center gap-3 mb-8">
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/20">
-                  <Zap size={20} className="text-white" />
+              <div className="flex flex-col items-center gap-6 mb-10">
+                <div className="flex items-center justify-center w-full">
+                  <Image
+                    src="/logo1.png"
+                    alt="CyberAgent Studio"
+                    width={280}
+                    height={70}
+                    className="object-contain mx-auto"
+                    style={{
+                      height: '72px',
+                      width: 'auto',
+                    } as React.CSSProperties}
+                    quality={100}
+                    priority
+                  />
                 </div>
                 <div className="text-center">
-                  <h2 className="text-slate-900 font-extrabold text-2xl tracking-tight">
-                    {step === "success" ? "Welcome aboard!" : "CyberAgent Studio"}
-                  </h2>
                   <p className="text-slate-500 text-sm mt-1">
                     {step === "email"   && "Sign in or create an account to get started."}
                     {step === "otp"     && <>Verify your email</>}

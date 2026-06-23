@@ -15,6 +15,13 @@ const nextConfig: NextConfig = {
    *   avatars.githubusercontent.com — GitHub OAuth avatars (future-proofing)
    */
   images: {
+    /*
+     * Allowlist the quality values used by <Image quality={100} />.
+     * Without this Next.js logs:
+     *   "Image with src is using quality 100 which is not configured"
+     * 75 is kept as the sensible default for any future images.
+     */
+    qualities: [75, 100],
     remotePatterns: [
       {
         protocol: "https",
@@ -24,6 +31,11 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "avatars.githubusercontent.com",
+        pathname: "/**",
+      },
+    ],
+    localPatterns: [
+      {
         pathname: "/**",
       },
     ],

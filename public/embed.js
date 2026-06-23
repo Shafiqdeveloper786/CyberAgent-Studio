@@ -63,9 +63,12 @@
   var scriptSrc = me ? (me.getAttribute("src") || "") : "";
   var base      = scriptSrc.replace(/\/embed\.js.*$/, "") ||
                   (typeof window !== "undefined" ? window.location.origin : "");
-  var widgetUrl = base + "/widget/" + agentId;
+  /* ── Cache-busting: append ?t=timestamp so the browser never
+     serves a stale iframe with old config (logo, theme, accent).   ── */
+  var widgetUrl = base + "/widget/" + agentId + "?t=" + Date.now();
 
   console.log("[Nexa Widget] v14 — Initializing | agentId:", agentId, "| base:", base);
+  console.log("[Nexa Widget] iframe.src generated:", widgetUrl);
 
   /* ── 2. Mobile detection (evaluated at click-time) ── */
   function isMobile() {
@@ -166,7 +169,7 @@
       "    box-shadow    .25s ease;",
       "}",
 
-      /* Expanded: desktop panel */
+      /* Expanded: desktop panel — Light theme default */
       "#nexa-agent-root.nexa-expanded {",
       "  width:         400px   !important;",
       "  height:        600px   !important;",
@@ -174,9 +177,9 @@
       "  border-radius: 16px    !important;",
       "  bottom:        24px    !important;",
       "  right:         24px    !important;",
-      "  background:    #050508 !important;",
+      "  background:    #ffffff !important;",
       "  transform:     none    !important;",
-      "  box-shadow:    0 12px 40px rgba(0,0,0,.65), 0 0 0 1px " + A + "22 !important;",
+      "  box-shadow:    0 12px 40px rgba(0,0,0,.15), 0 0 0 1px #e2e8f0 !important;",
       "}",
 
       /* iframe: hidden + inert when collapsed */
@@ -265,7 +268,7 @@
       "    transform:     none        !important;",
       "    transition:    none        !important;",
       "    z-index:       2147483647  !important;",
-      "    background:    #050508     !important;",
+      "    background:    #ffffff     !important;",
       "  }",
 
       /* Hide launcher button — eliminates touch-target collision */

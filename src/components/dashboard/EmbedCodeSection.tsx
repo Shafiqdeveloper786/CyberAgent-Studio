@@ -23,6 +23,7 @@ function buildHtmlSnippet(agentId: string, accentColor: string, origin: string):
   data-agent-id="${agentId}"
   data-accent-color="${accentColor || "#2563eb"}"
   data-theme="corporate-light"
+  data-logo="true"
   async>
 </script>`;
 }

@@ -14,10 +14,12 @@ export interface AgentConfig {
 
 /* Minimal shape of a persisted agent needed by loadAgent */
 export interface AgentSnapshot {
-  _id:        string;
-  name:       string;
-  persona:    string;
-  themeColor: string;
+  _id:            string;
+  name:           string;
+  persona:        string;
+  themeColor:     string;
+  theme?:         Theme;
+  welcomeMessage?: string;
 }
 
 interface AgentStoreCtx {
@@ -54,6 +56,8 @@ export function AgentStoreProvider({ children }: { children: React.ReactNode }) 
       name:        agent.name,
       persona:     agent.persona,
       accentColor: agent.themeColor,
+      theme:       agent.theme || "corporate-light",
+      welcomeMessage: agent.welcomeMessage || prev.welcomeMessage,
     }));
     setActiveAgentId(agent._id);
   };

@@ -18,7 +18,7 @@ import { useAuthStore } from "@/store/authStore";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { cn } from "@/lib/utils";
 
-type Section = "profile" | "billing" | "api-keys" | "team" | "integrations" | "notifications" | "danger";
+type Section = "profile" | "billing" | "api-keys" | "team" | "integrations" | "notifications" | "support" | "danger";
 
 const NAV: {
   id: Section; label: string;
@@ -31,6 +31,7 @@ const NAV: {
   { id: "team",          label: "Team",           icon: Users,         color: "#a855f7" },
   { id: "integrations",  label: "Integrations",   icon: Puzzle,        color: "#ec4899" },
   { id: "notifications", label: "Notifications",  icon: Bell,          color: "#06b6d4" },
+  { id: "support",       label: "Support Tickets", icon: MessageSquare, color: "#10b981" },
   { id: "danger",        label: "Danger Zone",    icon: AlertTriangle, color: "#ef4444" },
 ];
 
@@ -716,20 +717,13 @@ const ROLE_COLORS: Record<TeamRole, { bg: string; border: string; text: string }
   Admin:  { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-600" },
 };
 
-function initTeam(): TeamMember[] {
-  if (typeof window === "undefined") return [SEED_OWNER];
-  try { const raw = localStorage.getItem(TEAM_LS_KEY); if (raw) return JSON.parse(raw) as TeamMember[]; } catch {}
-  return [SEED_OWNER];
-}
-function genRawToken(): string { return Math.random().toString(16).slice(2, 10) + Math.random().toString(16).slice(2, 10); }
-function buildInviteLink(token: string, email: string): string { return `https://nexus.ai/join/workspace-invite?token=${token}&email=${encodeURIComponent(email)}`; }
-
 function TeamSection({ onDirty }: { onDirty: () => void }) {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initTeam);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([SEED_OWNER]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [selectedRole, setSelectedRole] = useState<TeamRole>("Viewer");
   const [emailError, setEmailError] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [lastInviteEmail, setLastInviteEmail] = useState<string | null>(null);
   const [lastInviteToken, setLastInviteToken] = useState("");
   const [tokenCopied, setTokenCopied] = useState(false);
@@ -738,7 +732,23 @@ function TeamSection({ onDirty }: { onDirty: () => void }) {
 
   const atCapacity = teamMembers.length >= MAX_SEATS;
 
-  useEffect(() => { if (typeof window !== "undefined") localStorage.setItem(TEAM_LS_KEY, JSON.stringify(teamMembers)); }, [teamMembers]);
+  const fetchTeam = async () => {
+    try {
+      const res = await fetch("/api/invite");
+      const data = await res.json();
+      if (data.ok && data.members) {
+        setTeamMembers([SEED_OWNER, ...data.members]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch team members", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeam();
+  }, []);
 
   const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
@@ -748,29 +758,67 @@ function TeamSection({ onDirty }: { onDirty: () => void }) {
     if (!validateEmail(email)) { setEmailError("Enter a valid email address."); return; }
     if (teamMembers.some((m) => m.email.toLowerCase() === email)) { setEmailError("This email is already on your team."); return; }
     setEmailError(""); setEmailDispatchStatus("idle"); setEmailDispatchMsg(""); setInviting(true);
-    const rawToken = genRawToken();
-    const inviteLink = buildInviteLink(rawToken, email);
-    const member: TeamMember = { id: `member-${Date.now()}`, name: email.split("@")[0], email, role: selectedRole, status: "Pending" };
-    const updated = [...teamMembers, member]; setTeamMembers(updated);
-    if (typeof window !== "undefined") localStorage.setItem(TEAM_LS_KEY, JSON.stringify(updated));
 
     setEmailDispatchStatus("sending");
     try {
-      const res = await fetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, role: selectedRole, token: rawToken, inviteLink, ownerEmail: OWNER_EMAIL }) });
-      const data = await res.json() as { ok: boolean; error?: string };
-      if (data.ok) { setEmailDispatchStatus("sent"); setEmailDispatchMsg(`Invitation email transmitted successfully to ${email}`); toast.success(`Invitation dispatched → ${email}`); }
-      else throw new Error(data.error ?? "Unknown server error");
+      const res = await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role: selectedRole })
+      });
+      const data = await res.json() as { ok: boolean; inviteLink?: string; error?: string; smtpOffline?: boolean };
+      
+      if (data.ok && data.inviteLink) {
+        await fetchTeam();
+
+        setLastInviteEmail(email);
+        setLastInviteToken(data.inviteLink);
+        setTokenCopied(false);
+        setInviteEmail("");
+        
+        if (data.smtpOffline) {
+          setEmailDispatchStatus("failed");
+          setEmailDispatchMsg("SMTP offline — please use the manual link below.");
+          toast.warning("SMTP Offline: copy link below manually.");
+        } else {
+          setEmailDispatchStatus("sent");
+          setEmailDispatchMsg(`Invitation email transmitted successfully to ${email}`);
+          toast.success(`Invitation dispatched → ${email}`);
+        }
+      } else {
+        throw new Error(data.error ?? "Unknown server error");
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Mail dispatch failed";
-      setEmailDispatchStatus("failed"); setEmailDispatchMsg(msg); toast.error(`Email delivery failed — use the manual link below.`);
+      setEmailDispatchStatus("failed");
+      setEmailDispatchMsg(msg);
+      toast.error(`Email delivery failed — ${msg}`);
+    } finally {
+      setInviting(false);
+      onDirty();
     }
-    setLastInviteEmail(email); setLastInviteToken(inviteLink); setTokenCopied(false); setInviteEmail(""); setInviting(false); onDirty();
   };
 
-  const removeMember = (id: string) => {
-    const updated = teamMembers.filter((m) => m.id !== id); setTeamMembers(updated);
-    if (typeof window !== "undefined") localStorage.setItem(TEAM_LS_KEY, JSON.stringify(updated));
-    onDirty(); toast.success("Member removed from team.");
+  const removeMember = async (id: string) => {
+    if (id === "owner-id") {
+      toast.error("Cannot remove the owner.");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/invite?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success("Member removed from team.");
+        await fetchTeam();
+        onDirty();
+      } else {
+        toast.error(data.error ?? "Failed to remove member");
+      }
+    } catch (err) {
+      toast.error("Failed to remove member");
+    }
   };
 
   const copyToken = () => { if (!lastInviteToken) return; navigator.clipboard.writeText(lastInviteToken); setTokenCopied(true); toast.success("Access token copied — send it via WhatsApp, Discord, or personal email."); setTimeout(() => setTokenCopied(false), 3000); };
@@ -1136,6 +1184,7 @@ function NotificationsSection({ onDirty, userEmail }: { onDirty: () => void; use
 function DangerSection() {
   const [confirm, setConfirm] = useState<"purge" | "delete" | null>(null);
   const [verifyInput, setVerifyInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const PURGE_VERIFY = "DELETE MY DATA";
   const DELETE_VERIFY = "DELETE MY ACCOUNT";
@@ -1151,6 +1200,39 @@ function DangerSection() {
   const closeModal = () => {
     setConfirm(null);
     setVerifyInput("");
+    setLoading(false);
+  };
+
+  const handleAction = async () => {
+    if (!isVerified) return;
+    setLoading(true);
+
+    try {
+      if (confirm === "purge") {
+        const res = await fetch("/api/user/purge", { method: "DELETE" });
+        const data = await res.json();
+        if (data.ok) {
+          toast.success("All workspace data (agents, knowledge bases) has been purged.");
+        } else {
+          toast.error(data.error ?? "Failed to purge data");
+        }
+      } else if (confirm === "delete") {
+        const res = await fetch("/api/user/delete", { method: "DELETE" });
+        const data = await res.json();
+        if (data.ok) {
+          toast.success("Account deleted successfully. Logging you out...");
+          setTimeout(() => {
+            signOut({ callbackUrl: "/" });
+          }, 1500);
+        } else {
+          toast.error(data.error ?? "Failed to delete account");
+        }
+      }
+    } catch (err) {
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      closeModal();
+    }
   };
 
   return (
@@ -1235,7 +1317,8 @@ function DangerSection() {
               <button
                 type="button"
                 onClick={closeModal}
-                className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                disabled={loading}
+                className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-50"
               >
                 <X size={14} />
               </button>
@@ -1275,8 +1358,9 @@ function DangerSection() {
                 value={verifyInput}
                 onChange={(e) => setVerifyInput(e.target.value)}
                 placeholder={`Type "${verifyTarget}"`}
+                disabled={loading}
                 autoFocus
-                className="w-full px-3.5 py-2.5 rounded-xl text-[13px] text-slate-800 outline-none transition-all border placeholder:text-slate-400 bg-white mb-5 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                className="w-full px-3.5 py-2.5 rounded-xl text-[13px] text-slate-800 outline-none transition-all border placeholder:text-slate-400 bg-white mb-5 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 disabled:opacity-50"
                 style={{ borderColor: verifyInput.length > 0 && !isVerified ? "#fca5a5" : "#e2e8f0" }}
               />
 
@@ -1285,26 +1369,272 @@ function DangerSection() {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+                  disabled={loading}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  disabled={!isVerified}
-                  onClick={() => {
-                    closeModal();
-                    toast.success(
-                      confirm === "purge"
-                        ? "Purge signal dispatched — all agent data queued for deletion."
-                        : "Account deletion request submitted — you will receive a confirmation email."
-                    );
-                  }}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-rose-600 text-white hover:bg-rose-700 shadow-sm active:scale-[0.97]"
+                  disabled={!isVerified || loading}
+                  onClick={handleAction}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-rose-600 text-white hover:bg-rose-700 shadow-sm active:scale-[0.97] flex items-center justify-center gap-1.5"
                 >
+                  {loading && <RefreshCw size={13} className="animate-spin" />}
                   {confirm === "purge" ? "Confirm Purge" : "Delete My Account"}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   SUPPORT SECTION — LIGHT
+══════════════════════════════════════════════ */
+function SupportSection() {
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchTickets = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/support");
+      const data = await res.json();
+      if (data.ok) {
+        setTickets(data.tickets || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTicket = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this ticket?")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/support/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success("Ticket deleted successfully.");
+        setTickets((prev) => prev.filter((t) => t._id !== id));
+        if (selectedTicket?._id === id) {
+          setSelectedTicket(null);
+        }
+      } else {
+        toast.error(data.error ?? "Failed to delete ticket.");
+      }
+    } catch (err) {
+      toast.error("An error occurred.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const handleSendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyMessage.trim() || !selectedTicket) return;
+    setSendingReply(true);
+    try {
+      const res = await fetch(`/api/support/${selectedTicket._id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: replyMessage }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success("Reply added.");
+        setReplyMessage("");
+        setSelectedTicket(data.ticket);
+        fetchTickets();
+      } else {
+        toast.error(data.error ?? "Failed to send reply.");
+      }
+    } catch (err) {
+      toast.error("An error occurred.");
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* AI-Powered Ticket Info Banner */}
+      <SectionCard>
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+            <MessageSquare size={18} className="text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-[13px] font-bold text-slate-800 mb-1">AI-Powered Support Tickets</h3>
+            <p className="text-[12px] text-slate-500 leading-relaxed">
+              Support tickets are now created automatically by our <span className="font-semibold text-blue-600">NexCore AI agent</span>. Simply chat with the assistant on any of your widget-enabled pages and say you need support — the AI will collect your details and open a ticket instantly.
+            </p>
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100 w-fit">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] font-semibold text-emerald-700">Fully Automated — Zero Manual Input Required</span>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard>
+        <SectionHeading title="Your Tickets & Inquiries" desc="View and track your current active and resolved tickets." />
+        {loading ? (
+          <div className="text-center py-6 text-xs text-slate-400">Loading support tickets...</div>
+        ) : tickets.length === 0 ? (
+          <div className="text-center py-8 text-xs text-slate-400">You haven't submitted any tickets yet.</div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                  <th className="px-4 py-2.5">Subject</th>
+                  <th className="px-4 py-2.5">Category</th>
+                  <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5">Last Updated</th>
+                  <th className="px-4 py-2.5 text-center w-16">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tickets.map((t) => (
+                  <tr
+                    key={t._id}
+                    onClick={() => setSelectedTicket(t)}
+                    className="border-b border-slate-100 hover:bg-slate-50/50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3 font-semibold text-slate-800">{t.subject}</td>
+                    <td className="px-4 py-3 text-slate-500">{t.category}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        t.status === "resolved"
+                          ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                          : "bg-amber-50 text-amber-600 border border-amber-100"
+                      }`}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400">{new Date(t.updatedAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTicket(t._id)}
+                        disabled={deletingId === t._id}
+                        className="p-1 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Ticket Details & Chat Modal */}
+      <AnimatePresence>
+        {selectedTicket && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setSelectedTicket(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl flex flex-col max-h-[80vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close button */}
+              <button
+                onClick={() => setSelectedTicket(null)}
+                className="absolute top-4 right-4 p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors z-10"
+              >
+                <X size={16} />
+              </button>
+
+              {/* Modal Header */}
+              <div className="p-6 border-b border-slate-100 flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 pr-6">
+                    <h3 className="text-sm font-bold text-slate-900 leading-tight">{selectedTicket.subject}</h3>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                      selectedTicket.status === "resolved" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-amber-50 text-amber-600 border border-amber-100"
+                    }`}>
+                      {selectedTicket.status}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1 font-semibold">Category: {selectedTicket.category}</p>
+                </div>
+              </div>
+
+              {/* Chat Thread Area */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
+                {/* User's Original Message */}
+                <div className="flex flex-col items-start max-w-[85%]">
+                  <span className="text-[10px] text-slate-400 font-semibold mb-1">Your Inquiry</span>
+                  <div className="px-4 py-2.5 rounded-2xl rounded-tl-sm text-xs bg-slate-100 text-slate-800 border border-slate-200/60 leading-relaxed shadow-sm">
+                    {selectedTicket.message}
+                  </div>
+                  <span className="text-[9px] text-slate-400 mt-1">{new Date(selectedTicket.createdAt).toLocaleString()}</span>
+                </div>
+
+                {/* Replies Thread */}
+                {selectedTicket.replies?.map((r: any, idx: number) => {
+                  const isAdmin = r.sender === "admin";
+                  return (
+                    <div key={idx} className={`flex flex-col ${isAdmin ? "items-end" : "items-start"} max-w-full`}>
+                      <span className="text-[10px] text-slate-400 font-semibold mb-1">
+                        {isAdmin ? "CyberAgent Support" : "You"}
+                      </span>
+                      <div className={`px-4 py-2.5 rounded-2xl text-xs max-w-[85%] leading-relaxed shadow-sm ${
+                        isAdmin
+                          ? "bg-blue-600 text-white rounded-tr-sm"
+                          : "bg-slate-100 text-slate-800 border border-slate-200/60 rounded-tl-sm"
+                      }`}>
+                        {r.message}
+                      </div>
+                      <span className="text-[9px] text-slate-400 mt-1">{new Date(r.createdAt).toLocaleString()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Chat Reply Input Bar */}
+              <form onSubmit={handleSendReply} className="p-4 border-t border-slate-100 flex gap-2 bg-white rounded-b-2xl">
+                <input
+                  type="text"
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  placeholder="Type a follow-up reply..."
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 bg-white"
+                />
+                <button
+                  type="submit"
+                  disabled={sendingReply || !replyMessage.trim()}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 active:scale-95 transition-all text-xs disabled:opacity-50"
+                >
+                  {sendingReply ? "Sending..." : "Reply"}
+                </button>
+              </form>
             </motion.div>
           </motion.div>
         )}
@@ -1355,6 +1685,7 @@ export default function SettingsPage() {
               {section === "team" && <TeamSection onDirty={() => setDirty(true)} />}
               {section === "integrations" && <IntegrationsSection />}
               {section === "notifications" && <NotificationsSection onDirty={() => setDirty(true)} userEmail={session?.user?.email ?? ""} />}
+              {section === "support" && <SupportSection />}
               {section === "danger" && <DangerSection />}
             </div>
           </div>

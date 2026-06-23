@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Zap } from "lucide-react";
+import Image from 'next/image';
+import { Menu, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
@@ -45,8 +46,8 @@ export function DashboardShell({ children, title }: DashboardShellProps) {
     }
   }, [status, openAuthModal]);
 
-  /* ── Source of truth for blur: NextAuth session status ── */
-  const isAuthenticated = status === "authenticated";
+  /* ── Source of truth for blur: NextAuth session status or local store login ── */
+  const isAuthenticated = status === "authenticated" || localLoggedIn;
 
   return (
     <>
@@ -130,14 +131,16 @@ export function DashboardShell({ children, title }: DashboardShellProps) {
                 </AnimatePresence>
               </button>
 
-              <div className="flex items-center gap-2">
-                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30">
-                  <Zap size={11} className="text-blue-600" />
-                </div>
-                <span className="text-[13px] font-bold uppercase tracking-wider text-slate-800">
-                  CyberAgent Studio
-                </span>
-              </div>
+              <Image
+                src="/logo.png"
+                alt="CyberAgent Studio"
+                width={140}
+                height={40}
+                className="object-contain"
+                style={{ height: '36px', width: 'auto' }}
+                quality={100}
+                priority
+              />
             </div>
           </div>
 

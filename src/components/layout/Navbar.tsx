@@ -3,9 +3,12 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, LogIn, LogOut, Sparkles, X, AlertCircle } from "lucide-react";
+import {
+  Bell, LogIn, LogOut, Sparkles, X, AlertCircle, Sparkle, AlertTriangle, Bot, Check, UserPlus, MailOpen
+} from "lucide-react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useAuthStore } from "@/store/authStore";
+import { useNotifications } from "@/lib/swr";
 
 interface NavbarProps {
   title?: string;
@@ -82,7 +85,35 @@ export function Navbar({ title }: NavbarProps) {
     ? user.name.split(" ").filter(Boolean).map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : "U";
 
-  const handleSignOut = () => signOut({ callbackUrl: "/dashboard" });
+  const handleSignOut = () => signOut({ callbackUrl: "/" });
+
+  const [showNotifications, setShowNotifications] = useState(false);
+  const { data: notifData, mutate: mutateNotifications } = useNotifications(isLoggedIn);
+  const notifications = notifData?.notifications || [];
+  const unreadCount = notifData?.unreadCount || 0;
+
+  const handleNotificationClick = async (notifId: string, isRead: boolean) => {
+    if (isRead) return;
+    try {
+      await fetch(`/api/notifications/${notifId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isRead: true }),
+      });
+      mutateNotifications();
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await fetch("/api/notifications/mark-all-read", { method: "POST" });
+      mutateNotifications();
+    } catch (err) {
+      console.error("Error marking all as read:", err);
+    }
+  };
 
   return (
     <>
@@ -110,12 +141,104 @@ export function Navbar({ title }: NavbarProps) {
 
           {/* Notification bell */}
           {isLoggedIn && (
-            <button
-              className="relative flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-blue-600 bg-slate-50 border border-slate-200 hover:border-blue-300 transition-all duration-200"
-            >
-              <Bell size={14} />
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm" />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-blue-600 bg-slate-50 border border-slate-200 hover:border-blue-300 transition-all duration-200"
+              >
+                <Bell size={14} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-rose-500 shadow-sm" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showNotifications && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-35"
+                      onClick={() => setShowNotifications(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white shadow-xl py-2 z-40 max-h-96 overflow-y-auto"
+                    >
+                      <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">Notifications</span>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={handleMarkAllAsRead}
+                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1"
+                          >
+                            <MailOpen size={10} /> Mark all read
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-slate-400">
+                            No notifications yet.
+                          </div>
+                        ) : (
+                          notifications.map((n: any) => {
+                            let icon = <Bell size={12} className="text-blue-500" />;
+                            let iconBg = "bg-blue-50/60";
+                            
+                            if (n.type === "welcome") {
+                              icon = <UserPlus size={12} className="text-blue-600" />;
+                              iconBg = "bg-blue-50";
+                            } else if (n.type === "subscription") {
+                              icon = <Sparkle size={12} className="text-emerald-600" />;
+                              iconBg = "bg-emerald-50";
+                            } else if (n.type === "limit_warning") {
+                              icon = <AlertTriangle size={12} className="text-amber-600" />;
+                              iconBg = "bg-amber-50";
+                            } else if (n.type === "agent_created") {
+                              icon = <Bot size={12} className="text-violet-600" />;
+                              iconBg = "bg-violet-50";
+                            } else if (n.type === "invite_accepted") {
+                              icon = <Check size={12} className="text-indigo-600" />;
+                              iconBg = "bg-indigo-50";
+                            }
+
+                            return (
+                              <div
+                                key={n._id}
+                                onClick={() => {
+                                  handleNotificationClick(n._id, n.isRead);
+                                }}
+                                className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50/80 transition-colors ${
+                                  !n.isRead ? "bg-blue-50/20 font-medium" : ""
+                                }`}
+                              >
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+                                  {icon}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[11px] text-slate-700 leading-normal break-words">
+                                    {n.message}
+                                  </p>
+                                  <p className="text-[9px] text-slate-400 mt-1">
+                                    {new Date(n.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                {!n.isRead && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           )}
 
           {/* Auth area */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useCallback, useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, CheckCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -228,6 +229,19 @@ export function OtpVerification({
 
         {/* Header */}
         <div className="text-center mb-7 mt-2">
+          {/* Brand logo */}
+          <div className="flex justify-center mb-5">
+            <Image
+              src="/logo1.png"
+              alt="CyberAgent Studio"
+              width={220}
+              height={56}
+              quality={100}
+              priority
+              className="object-contain"
+              style={{ width: 'auto', maxHeight: '56px' }}
+            />
+          </div>
           {/* Animated envelope icon */}
           <motion.div
             animate={{ y: [-3, 3, -3] }}

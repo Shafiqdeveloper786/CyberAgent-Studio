@@ -92,12 +92,13 @@ export function AgentSetup({ onSaved }: Props) {
           name:           config.name,
           persona:        config.persona,
           themeColor:     config.accentColor,
+          theme:          config.theme,
           welcomeMessage: config.welcomeMessage,
         }),
       });
 
       const data = await res.json() as {
-        agent?: { _id: string; name: string; persona: string; themeColor: string };
+        agent?: { _id: string; name: string; persona: string; themeColor: string; theme?: any; welcomeMessage?: string };
         error?: string;
       };
 
@@ -111,6 +112,8 @@ export function AgentSetup({ onSaved }: Props) {
             name:       data.agent.name       ?? config.name,
             persona:    data.agent.persona    ?? config.persona,
             themeColor: data.agent.themeColor ?? config.accentColor,
+            theme:      data.agent.theme      ?? config.theme,
+            welcomeMessage: data.agent.welcomeMessage ?? config.welcomeMessage,
           });
         }
         onSaved?.();

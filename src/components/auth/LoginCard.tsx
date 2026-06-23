@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Mail, ArrowRight, Loader2, Zap } from "lucide-react";
+import Image from 'next/image';
+import { ArrowLeft, Mail, ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ── Google icon ── */
@@ -73,20 +74,8 @@ export function LoginCard({
 
         {/* Brand */}
         <div className="flex flex-col items-center gap-3 mb-7 mt-2">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center"
-            style={{
-              background:  "linear-gradient(135deg,rgba(0,242,255,0.2),rgba(168,85,247,0.2))",
-              border:      "1px solid rgba(0,242,255,0.3)",
-              boxShadow:   "0 0 28px rgba(0,242,255,0.2), inset 0 1px 0 rgba(0,242,255,0.15)",
-            }}
-          >
-            <Zap size={22} className="text-[#00f2ff]" />
-          </div>
+          <Image src="/logo1.png" alt="CyberAgent Studio" width={280} height={70} quality={100} priority className="object-contain" style={{ maxHeight: '64px', width: 'auto' }} />
           <div className="text-center">
-            <h1 className="text-[26px] font-black tracking-tight text-[#f1f5f9]">
-              CyberAgent Studio
-            </h1>
             <p className="text-[13px] text-[#475569] mt-0.5 font-medium">
               Sign in or create your account
             </p>

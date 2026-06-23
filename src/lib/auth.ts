@@ -4,6 +4,8 @@ import CredentialsProvider  from "next-auth/providers/credentials";
 import connectDB from "./mongodb";
 import User from "@/models/User";
 import VerificationToken from "@/models/VerificationToken";
+import Notification from "@/models/Notification";
+
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -99,34 +101,58 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (!user.email) return false;
 
-      /* Credentials: already handled in authorize() */
-      if (account?.type === "credentials") return true;
-
-      /* Google OAuth: upsert with latest profile data */
       try {
         await connectDB();
+        const email = user.email.toLowerCase();
 
-        await User.findOneAndUpdate(
-          { email: user.email.toLowerCase() },
-          {
-            $set: {
-              name:       user.name  ?? "",
-              image:      user.image ?? "",
-              isVerified: true,   // Google verifies email identity
-            },
-            $setOnInsert: {
-              authMethod:   "google",
-              role:         "user",
-              subscription: "free",
-            },
-          },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
+        // 1. Check if user is blocked
+        let dbUser = await User.findOne({ email });
+        if (dbUser && dbUser.isBlocked) {
+          console.log(`[auth] Sign-in blocked for user: ${email}`);
+          return false;
+        }
 
-        console.log(`[auth] Google sign-in OK: ${user.email}`);
+        // 2. For Google provider, perform the upsert here
+        if (account?.provider === "google") {
+          dbUser = await User.findOneAndUpdate(
+            { email },
+            {
+              $set: {
+                name:       user.name  ?? "",
+                image:      user.image ?? "",
+                isVerified: true,
+              },
+              $setOnInsert: {
+                authMethod:   "google",
+                role:         "user",
+                subscription: "free",
+              },
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          );
+          console.log(`[auth] Google sign-in OK: ${email}`);
+        }
+
+        // 3. Trigger welcome notification if not already sent
+        if (dbUser) {
+          const welcomeNotif = await Notification.findOne({
+            userId: dbUser._id,
+            type: "welcome",
+          });
+          if (!welcomeNotif) {
+            await Notification.create({
+              userId: dbUser._id,
+              type: "welcome",
+              message: "Welcome to CyberAgent Studio! Start building your customized AI agents now.",
+              isRead: false,
+            });
+            console.log(`[auth] Sent welcome notification to user: ${dbUser._id}`);
+          }
+        }
+
         return true;
       } catch (err) {
-        console.error("[auth] Google signIn callback error:", err);
+        console.error("[auth] signIn callback error:", err);
         return false;
       }
     },

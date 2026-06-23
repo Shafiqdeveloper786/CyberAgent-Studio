@@ -14,6 +14,7 @@ export interface SavedAgent {
   themeColor:     string;
   welcomeMessage: string;
   createdAt:      string;
+  theme?:         any;
 }
 
 interface Props {
