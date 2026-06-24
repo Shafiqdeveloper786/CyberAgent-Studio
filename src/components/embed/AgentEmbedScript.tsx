@@ -45,62 +45,61 @@ const PRODUCTION_FALLBACK = "https://cyber-agent-studio.vercel.app";
 
 export function AgentEmbedScript({
   agentId,
-  accentColor = "#2563eb", // Updated to corporate identifier standard blueprint
+  accentColor = "#2563eb",
 }: AgentEmbedScriptProps) {
-  /* mounted tracks whether we are in the browser — kept for consumers
-     that may inspect the prop, but the render always returns null.      */
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
 
-    /* Never inject inside the widget iframe route — the root layout runs for
-       /widget/[agentId] too, which would mount a second launcher bubble on top
-       of the chat input. embed.js also guards via window !== window.top, but
-       skipping the script injection entirely avoids the wasted network request. */
     if (window.location.pathname.startsWith("/widget/")) return;
 
-    /* Prevent duplicate injection across HMR reloads or StrictMode
-       double-invocations.                                               */
-    if (document.getElementById("system-agent-universal-script")) return;
+    /* ── AGENT CONTEXT ISOLATION: If agentId changed, remove old embed ── */
+    const existingScript = document.getElementById("system-agent-universal-script");
+    if (existingScript) {
+      const currentAgentId = existingScript.getAttribute("data-agent-id");
+      if (currentAgentId === agentId) {
+        /* Same agent — no need to re-inject */
+        return;
+      }
+      /* Different agent — remove the old script so the new one loads fresh */
+      existingScript.remove();
+    }
 
-    /* Resolve the base URL strictly inside the browser context.
-       Prefers the actual runtime origin so custom-domain deployments
-       work without any env var. Falls back to the production Vercel URL
-       if somehow window.location is unavailable (sandboxed iframes etc) */
+    /* ── Also check for leftover widget root divs from previous agent ── */
+    const oldWidget = document.getElementById("cyberagent-widget-root");
+    if (oldWidget) oldWidget.remove();
+
     const runtimeOrigin =
       typeof window !== "undefined" && window.location.origin
         ? window.location.origin
         : PRODUCTION_FALLBACK;
 
-    /* Resolve to production URL if running on localhost in the browser
-       to avoid fetching embed.js from a dev server that isn't serving it.
-       Remove this guard if you want the widget active in local dev too.  */
     const baseHost = runtimeOrigin.includes("localhost")
       ? PRODUCTION_FALLBACK
       : runtimeOrigin;
 
-    /* cache-buster: forces a fresh fetch on every mount so stale cached
-       versions of embed.js don't persist across deployments.             */
     const script = document.createElement("script");
     script.id              = "system-agent-universal-script";
     script.src             = `${baseHost}/embed.js?ts=${Date.now()}`;
     script.defer           = true;
-    script.setAttribute("data-agent-id",     agentId);
-    script.setAttribute("data-accent-color", accentColor);
+    script.setAttribute("data-agent-id",      agentId);
+    script.setAttribute("data-accent-color",  accentColor);
+    script.setAttribute("data-icon",          "/icons/professional-agent.svg");
+    script.setAttribute("data-mode",          "production");
+    script.setAttribute("data-context-lock",  "strict-kb-only");
 
     document.body.appendChild(script);
-    console.log("[SystemAgentScript] Runtime instance initialized from host:", baseHost);
+    console.log(`[AgentEmbedScript] ✓ Isolated script for agent ${agentId} from ${baseHost}`);
 
     return () => {
-      /* Cleanup on unmount — prevents ghost scripts during HMR */
       const el = document.getElementById("system-agent-universal-script");
       if (el) el.remove();
+      const w = document.getElementById("cyberagent-widget-root");
+      if (w) w.remove();
     };
   }, [agentId, accentColor]);
 
-  /* Return null on BOTH server and first client render.
-     Server emits nothing → nothing to hydrate → Error #418 impossible. */
   if (!mounted) return null;
   return null;
 }

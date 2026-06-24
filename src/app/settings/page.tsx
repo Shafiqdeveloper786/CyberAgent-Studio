@@ -18,7 +18,7 @@ import { useAuthStore } from "@/store/authStore";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { cn } from "@/lib/utils";
 
-type Section = "profile" | "billing" | "api-keys" | "team" | "integrations" | "notifications" | "support" | "danger";
+type Section = "profile" | "billing" | "api-keys" | "team" | "integrations" | "notifications" | "danger";
 
 const NAV: {
   id: Section; label: string;
@@ -31,7 +31,7 @@ const NAV: {
   { id: "team",          label: "Team",           icon: Users,         color: "#a855f7" },
   { id: "integrations",  label: "Integrations",   icon: Puzzle,        color: "#ec4899" },
   { id: "notifications", label: "Notifications",  icon: Bell,          color: "#06b6d4" },
-  { id: "support",       label: "Support Tickets", icon: MessageSquare, color: "#10b981" },
+  // Removed: Support Tickets — now handled via Customer Inquiries page
   { id: "danger",        label: "Danger Zone",    icon: AlertTriangle, color: "#ef4444" },
 ];
 
@@ -1685,7 +1685,7 @@ export default function SettingsPage() {
               {section === "team" && <TeamSection onDirty={() => setDirty(true)} />}
               {section === "integrations" && <IntegrationsSection />}
               {section === "notifications" && <NotificationsSection onDirty={() => setDirty(true)} userEmail={session?.user?.email ?? ""} />}
-              {section === "support" && <SupportSection />}
+              {/* Support Tickets removed — handled via Customer Inquiries page */}
               {section === "danger" && <DangerSection />}
             </div>
           </div>

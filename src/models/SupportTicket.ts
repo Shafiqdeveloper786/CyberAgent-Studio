@@ -35,6 +35,9 @@ export interface ISupportTicket extends Document {
   /** Short subject line for the ticket.                               */
   subject:      string;
 
+  /** Category / department for the inquiry (billing, technical, general, etc.). */
+  category?:    string;
+
   /** Full conversation transcript from the NexCore AI chat widget.    */
   chatContext:  IChatMessage[];
 
@@ -104,6 +107,12 @@ const SupportTicketSchema = new Schema<ISupportTicket>(
       type:     String,
       required: true,
       trim:     true,
+    },
+    category: {
+      type:    String,
+      trim:    true,
+      default: "general",
+      index:   true,
     },
     chatContext: {
       type:    [ChatMessageSchema],

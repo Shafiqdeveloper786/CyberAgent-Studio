@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MessageSquare, Clock, AlertCircle, RefreshCw, Send, Mail, Inbox, Globe, XCircle, Search, Trash2
+  MessageSquare, Clock, AlertCircle, RefreshCw, Send, Mail, Inbox, Globe, XCircle, Search, Trash2, Plus, Loader2
 } from "lucide-react";
 
 interface SupportTicket {
@@ -32,12 +32,22 @@ export default function CustomerInquiriesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [tabFilter, setTabFilter] = useState<"support" | "feedback">("support");
+  const tabFilter = "support" as const;
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
   const [toast, setToast] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  /* ── New inquiry modal state ── */
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newSubject, setNewSubject] = useState("");
+  const [newCategory, setNewCategory] = useState("general");
+  const [newMessage, setNewMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  /* ── Admin check for status update visibility ── */
+  const isAdmin = session?.user?.role === "admin";
 
   const knownTicketIdsRef = useRef<Set<string>>(new Set());
 
@@ -50,7 +60,7 @@ export default function CustomerInquiriesPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/inquiries?search=${encodeURIComponent(search)}&status=${statusFilter}&isInternal=${tabFilter === "feedback"}`
+        `/api/inquiries?search=${encodeURIComponent(search)}&status=${statusFilter}&isInternal=false`
       );
       const data = await res.json();
       if (data.ok) {
@@ -76,7 +86,7 @@ export default function CustomerInquiriesPage() {
     if (status === "authenticated") {
       fetchTickets();
     }
-  }, [status, search, statusFilter, tabFilter]);
+  }, [status, search, statusFilter]);
 
   // Polling for new customer support tickets to show a toast notification
   useEffect(() => {
@@ -110,9 +120,7 @@ export default function CustomerInquiriesPage() {
               // Trigger notification toast (triggers only when a new isInternal: false ticket is created)
               showToast(`🔔 New Support Inquiry: "${t.subject}" from ${t.contactName}`);
             });
-            if (tabFilter === "support") {
-              fetchTickets();
-            }
+            fetchTickets();
           }
         }
       } catch (err) {
@@ -121,7 +129,39 @@ export default function CustomerInquiriesPage() {
     }, 15000);
 
     return () => clearInterval(interval);
-  }, [status, tabFilter]);
+  }, [status]);
+
+  const handleCreateInquiry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubject.trim() || !newMessage.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: newSubject.trim(),
+          category: newCategory,
+          message: newMessage.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast("Inquiry submitted successfully");
+        setShowNewForm(false);
+        setNewSubject("");
+        setNewCategory("general");
+        setNewMessage("");
+        fetchTickets();
+      } else {
+        showToast(data.error ?? "Failed to submit inquiry");
+      }
+    } catch {
+      showToast("An error occurred");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleCycleStatus = async (id: string, currentStatus: string) => {
     const cycle: Record<string, string> = {
@@ -235,38 +275,28 @@ export default function CustomerInquiriesPage() {
               Manage inquiries and internal test feedback from your NexCore agents.
             </p>
           </div>
-          <button
-            onClick={fetchTickets}
-            className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
-          >
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowNewForm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all active:scale-95 shadow-md shadow-blue-500/10"
+            >
+              <Plus size={12} /> New Inquiry
+            </button>
+            <button
+              onClick={fetchTickets}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
+            >
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Refresh
+            </button>
+          </div>
         </div>
 
-        {/* Tab switcher for Traffic Segregation */}
+        {/* Customer Support — unified */}
         <div className="flex gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200/60 w-fit">
-          <button
-            onClick={() => setTabFilter("support")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              tabFilter === "support"
-                ? "bg-white border border-slate-200/50 text-slate-800 shadow-sm"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
+          <div className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200/50 text-slate-800 shadow-sm">
             <Globe size={12} />
             Customer Support
-          </button>
-          <button
-            onClick={() => setTabFilter("feedback")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              tabFilter === "feedback"
-                ? "bg-white border border-slate-200/50 text-slate-800 shadow-sm"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <AlertCircle size={12} />
-            Internal Feedback
-          </button>
+          </div>
         </div>
 
         {/* Filters Section */}
@@ -421,13 +451,26 @@ export default function CustomerInquiriesPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => handleCycleStatus(selectedTicket._id, selectedTicket.status)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
-                      >
-                        <Clock size={12} />
-                        {selectedTicket.status === "pending" ? "Start Progress" : selectedTicket.status === "in-progress" ? "Resolve Inquiry" : "Reopen Inquiry"}
-                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleCycleStatus(selectedTicket._id, selectedTicket.status)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
+                        >
+                          <Clock size={12} />
+                          {selectedTicket.status === "pending" ? "Start Progress" : selectedTicket.status === "in-progress" ? "Resolve Inquiry" : "Reopen Inquiry"}
+                        </button>
+                      )}
+                      {!isAdmin && (
+                        <span className={`px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider border ${
+                          selectedTicket.status === "resolved"
+                            ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                            : selectedTicket.status === "in-progress"
+                            ? "bg-amber-50 text-amber-600 border-amber-100"
+                            : "bg-rose-50 text-rose-600 border-rose-100"
+                        }`}>
+                          {selectedTicket.status === "in-progress" ? "In Progress" : selectedTicket.status}
+                        </span>
+                      )}
                       <button
                         onClick={() => setSelectedTicket(null)}
                         className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
@@ -553,6 +596,119 @@ export default function CustomerInquiriesPage() {
           </div>
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════
+         New Inquiry Modal
+      ═══════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showNewForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            onClick={() => setShowNewForm(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">New Support Inquiry</h2>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Submit a new support ticket to our team.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowNewForm(false)}
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <XCircle size={18} />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleCreateInquiry} className="p-5 space-y-4">
+                {/* Subject */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Subject <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newSubject}
+                    onChange={(e) => setNewSubject(e.target.value)}
+                    placeholder="Brief summary of your issue..."
+                    required
+                    className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white transition-all placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Category
+                  </label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white transition-all"
+                  >
+                    <option value="general">General</option>
+                    <option value="billing">Billing</option>
+                    <option value="technical">Technical</option>
+                    <option value="feature">Feature Request</option>
+                    <option value="bug">Bug Report</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {/* Message */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Message <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Describe your issue in detail..."
+                    required
+                    rows={4}
+                    className="w-full resize-none px-3 py-2.5 text-xs border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white transition-all placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewForm(false)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!newSubject.trim() || !newMessage.trim() || submitting}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 transition-all active:scale-95 shadow-md shadow-blue-500/10"
+                  >
+                    {submitting ? (
+                      <><Loader2 size={12} className="animate-spin" /> Submitting...</>
+                    ) : (
+                      <><Send size={12} /> Submit Inquiry</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardShell>
   );
 }

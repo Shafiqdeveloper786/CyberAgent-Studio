@@ -582,6 +582,89 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
 }
 
 /* ═══════════════════════════════════════════════════
+   Admin Notification Email
+═══════════════════════════════════════════════════ */
+
+export interface AdminNotificationPayload {
+  subject: string;
+  text:    string;
+}
+
+/**
+ * sendEmailToAdmin — fires an email to the configured ADMIN_EMAIL
+ * whenever a user creates a new support ticket or any other event
+ * that requires admin awareness.
+ *
+ * This is a fire-and-forget function.  Errors are logged but never thrown.
+ */
+export async function sendEmailToAdmin(payload: AdminNotificationPayload): Promise<void> {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log(
+      `\n\x1b[33m[email] SMTP not configured — admin notification skipped\x1b[0m\n` +
+      `\x1b[36m  → Admin notification: ${payload.subject}\x1b[0m\n`
+    );
+    return;
+  }
+
+  const adminEmail = process.env.ADMIN_EMAIL?.trim();
+  if (!adminEmail) {
+    console.log(`\x1b[33m[email] ADMIN_EMAIL not set — admin notification skipped\x1b[0m`);
+    return;
+  }
+
+  const transport = makeTransporter();
+  const from = process.env.EMAIL_FROM ?? `CyberAgent Studio <${process.env.EMAIL_USER}>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>${payload.subject}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;">
+  <tr>
+    <td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+        <tr><td style="height:4px;background:linear-gradient(90deg,#2563eb,#7c3aed);">&nbsp;</td></tr>
+        ${emailHeader()}
+        <tr>
+          <td align="center" style="padding:0 40px 16px;">
+            <h1 style="color:#0f172a;font-size:22px;font-weight:800;margin:0;">${payload.subject}</h1>
+            <p style="color:#64748b;font-size:14px;margin:10px 0 0;line-height:1.6;white-space:pre-wrap;">${payload.text}</p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 40px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid #e2e8f0;font-size:0;">&nbsp;</td></tr></table></td></tr>
+        ${emailFooter()}
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+
+  try {
+    const info = await transport.sendMail({
+      from,
+      to:      adminEmail,
+      subject: payload.subject,
+      html,
+      headers: {
+        "X-Priority": "1",
+        "X-Mailer":   "CyberAgent-Studio-Mailer",
+        "Precedence": "transactional",
+      },
+    });
+    console.log(`[email] ✓ Admin notification sent — messageId: ${info.messageId}`);
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    console.error("[email] ✗ Admin notification failed:", raw);
+    /* Non-fatal */
+  }
+}
+
+/* ═══════════════════════════════════════════════════
    Support Engine Emails
 ═══════════════════════════════════════════════════ */
 

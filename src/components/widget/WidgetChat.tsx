@@ -159,16 +159,9 @@ function buildCssVars(accent: string, theme: string) {
   } as React.CSSProperties;
 }
 
-/* ── TASK 4: formatMessage — strips tool-call artifacts, returns clean text ── */
+/* ── formatMessage — strips any remaining JSON tool-call artifacts ── */
 function formatMessage(content: string): string {
   if (!content) return "";
-  // If the raw content is a tool call JSON/function artifact, show clean message
-  if (content.includes("function=createTicket") ||
-      content.includes('"toolName": "createTicket"') ||
-      content.includes('"function":"createTicket"')) {
-    return "Support ticket submitted successfully.";
-  }
-  // Strip any remaining JSON-like tool call syntax
   return content.replace(/\{?"(?:function|toolName)"\s*:\s*"[^"]*"[^}]*\}?/g, "").trim() || content;
 }
 
@@ -187,8 +180,8 @@ export function WidgetChat({
   const endRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
-  /* ── BRANDING PERSISTENCE: Always "NexCore AI" — the central support assistant ── */
-  const agentName = "NexCore AI";
+  /* ── BRANDING PERSISTENCE: Always "CyberAgent Studio" — the central support assistant ── */
+  const agentName = "CyberAgent Studio";
   const logoUrl = propsLogoUrl;
   const [theme, setTheme] = useState(propsTheme);
   const welcomeMessage = _propsWelcomeMsg || `Hello! I'm ${agentName}. How can I help you today?`;
@@ -223,8 +216,6 @@ export function WidgetChat({
   /* ── Filter out raw tool-call artifacts from message list ── */
   const visibleMessages = messages.filter((msg) => {
     if (msg.role !== "assistant") return true;
-    if (msg.content.includes("function=createTicket")) return false;
-    if (msg.content.includes('"toolName": "createTicket"')) return false;
     return true;
   });
 
@@ -492,16 +483,4 @@ export function WidgetChat({
   );
 }
 
-export const createTicketTool = {
-  name: "createTicket",
-  description: "Automated support ticketing tool. Registers customer inquiries directly into the database.",
-  parameters: {
-    type: "object",
-    properties: {
-      name: { type: "string", description: "The customer's full name" },
-      email: { type: "string", description: "The customer's email address" },
-      message: { type: "string", description: "Detailed support/issue message" }
-    },
-    required: ["name", "email", "message"]
-  }
-};
+/* createTicket tool removed — tickets are now submitted via Customer Inquiries page */

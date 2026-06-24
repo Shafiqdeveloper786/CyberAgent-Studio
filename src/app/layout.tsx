@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
 import { FloatingWidgetChat } from "@/components/widget/FloatingWidgetChat";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "CyberAgent Studio",
@@ -24,18 +25,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="h-full bg-[#050505] text-[#e2e8f0] antialiased">
+      <body className="h-full bg-slate-50 text-slate-900 antialiased">
         <Providers>
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </Providers>
 
-        {/*
-         * FloatingWidgetChat — live chat overlay synced with the
-         * user's active agent config from the database.
-         * Renders WidgetChat directly (no iframe) so it shares the
-         * same CSS variables, theme, logo, and createTicket tool
-         * as WidgetPreview in the dashboard.
-         */}
         <FloatingWidgetChat />
       </body>
     </html>

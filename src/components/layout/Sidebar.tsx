@@ -103,7 +103,7 @@ export function Sidebar() {
         {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
           return (
-            <Link key={href} href={href} className={cn("group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150", active ? "bg-blue-50/60 text-blue-600 font-semibold border-l-[3px] border-blue-600 pl-[11px]" : "text-slate-500 hover:text-slate-900 hover:bg-slate-50/80")}>
+            <Link key={href} href={href} prefetch={true} className={cn("group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150", active ? "bg-blue-50/60 text-blue-600 font-semibold border-l-[3px] border-blue-600 pl-[11px]" : "text-slate-500 hover:text-slate-900 hover:bg-slate-50/80")}>
               <Icon size={16} className={cn("shrink-0", active ? "text-blue-600" : "text-slate-400")} />
               {!collapsed && <span className="whitespace-nowrap overflow-hidden">{label}</span>}
             </Link>
@@ -115,7 +115,7 @@ export function Sidebar() {
 
       <div className="px-3 pb-5 pt-2">
         <div className="h-px bg-slate-100 mb-3 mx-3" />
-        <Link href="/settings" className={cn("group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50/80")}>
+        <Link href="/settings" prefetch={true} className={cn("group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50/80")}>
           <Settings size={16} className="text-slate-400" />
           {!collapsed && <span>Settings</span>}
         </Link>

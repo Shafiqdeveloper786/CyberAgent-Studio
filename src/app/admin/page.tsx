@@ -594,20 +594,6 @@ export default function AdminPage() {
                     <p className="text-xs text-slate-500 mt-0.5">{supportTickets.length} ticket{supportTickets.length !== 1 ? "s" : ""}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <div className="flex gap-1 p-1 rounded-lg bg-slate-100 border border-slate-200">
-                      <button
-                        onClick={() => { setSupportIsInternal(false); setSelectedTicket(null); }}
-                        className={`flex items-center gap-1 px-3 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                          !supportIsInternal ? "bg-white text-slate-700 shadow-sm border border-slate-200/50" : "text-slate-500 hover:text-slate-800"
-                        }`}
-                      ><Globe size={10} /> External</button>
-                      <button
-                        onClick={() => { setSupportIsInternal(true); setSelectedTicket(null); }}
-                        className={`flex items-center gap-1 px-3 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                          supportIsInternal ? "bg-white text-slate-700 shadow-sm border border-slate-200/50" : "text-slate-500 hover:text-slate-800"
-                        }`}
-                      ><Lock size={10} /> Internal</button>
-                    </div>
                     <select value={supportStatusFilter} onChange={(e) => setSupportStatusFilter(e.target.value)}
                       className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none bg-white text-slate-700">
                       <option value="all">All Status</option>
