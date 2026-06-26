@@ -5,7 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -24,8 +24,9 @@ export async function PATCH(
 
     const Inquiry = (await import("@/models/Inquiry")).default;
 
+    const { id } = await params;
     const ticket = await Inquiry.findByIdAndUpdate(
-      params.id,
+      id,
       { status },
       { new: true }
     );
@@ -52,7 +53,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -64,7 +65,8 @@ export async function DELETE(
 
     const Inquiry = (await import("@/models/Inquiry")).default;
 
-    const ticket = await Inquiry.findByIdAndDelete(params.id);
+    const { id } = await params;
+    const ticket = await Inquiry.findByIdAndDelete(id);
 
     if (!ticket) {
       return NextResponse.json({ ok: false, error: "Ticket not found" }, { 

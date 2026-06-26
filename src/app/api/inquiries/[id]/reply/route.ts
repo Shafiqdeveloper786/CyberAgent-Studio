@@ -6,7 +6,7 @@ import { sendReplyNotificationEmail } from "@/lib/email";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -25,7 +25,8 @@ export async function POST(
 
     const Inquiry = (await import("@/models/Inquiry")).default;
 
-    const ticket = await Inquiry.findById(params.id);
+    const { id } = await params;
+    const ticket = await Inquiry.findById(id);
 
     if (!ticket) {
       return NextResponse.json({ ok: false, error: "Ticket not found" }, { 

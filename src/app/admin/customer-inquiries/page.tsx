@@ -330,7 +330,7 @@ export default function CustomerInquiriesPage() {
                 </div>
 
                 {/* Reply Compose Footer - Admin Only */}
-                {isAdmin && (
+                {isAdmin && selectedTicket && (
                   <div className="border-t border-slate-100 p-4 bg-white">
                     <form
                       onSubmit={(e) => handleReplySubmit(e, selectedTicket._id)}
