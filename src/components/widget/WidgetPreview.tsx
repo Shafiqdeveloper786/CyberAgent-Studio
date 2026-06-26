@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAgentStore, type Theme } from "@/store/agentStore";
 import { useLiveChat } from "@/hooks/useLiveChat";
 import { cn } from "@/lib/utils";
@@ -56,13 +56,22 @@ function getThemeStyles(theme: Theme, accent: string): ThemeStyles {
 }
 
 /* ═══════════════════════════════════════════
-   Typing indicator
+   Typing indicator with rotating text
 ═══════════════════════════════════════════ */
 function TypingIndicator({
   t, accent, name,
 }: {
   t: ThemeStyles; accent: string; name: string;
 }) {
+  const [status, setStatus] = useState<"thinking" | "generating">("thinking");
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStatus((prev) => (prev === "thinking" ? "generating" : "thinking"));
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="flex items-end gap-2">
       <div
@@ -73,7 +82,7 @@ function TypingIndicator({
       </div>
       <div>
         <p className="text-[9px] mb-1 font-medium" style={{ color: t.subText }}>
-          {name} is typing…
+          {status === "thinking" ? "Thinking" : "Generating"}
         </p>
         <div
           className="flex items-center gap-1 px-3 py-2.5 rounded-2xl rounded-tl-sm"

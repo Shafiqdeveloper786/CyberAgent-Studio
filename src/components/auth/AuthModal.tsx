@@ -179,8 +179,7 @@ export function AuthModal() {
         setOtpError("Invalid or expired code. Please try again.");
         return;
       }
-      setStep("success");
-      // Immediate redirect to main dashboard
+      // Direct redirect to dashboard - no intermediate success step
       router.push("/dashboard"); 
       router.refresh(); 
       closeModal(); 

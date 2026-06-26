@@ -80,6 +80,24 @@ export function DashboardContent() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 h-[calc(100vh-64px)] overflow-hidden">
 
+      {/* Floating Chat Button with Label */}
+      {!chatOpen && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center gap-2">
+          <span className="text-xs font-semibold text-slate-700 bg-white px-3 py-1.5 rounded-full shadow-md border border-slate-200">
+            Let's Talk
+          </span>
+          <button
+            onClick={() => setChatOpen(true)}
+            className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-xl hover:shadow-2xl hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center"
+            title="Open chat preview"
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Chat Preview Modal */}
       {chatOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
