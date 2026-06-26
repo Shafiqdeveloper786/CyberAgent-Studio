@@ -8,6 +8,7 @@ import { WidgetStyling } from "./WidgetStyling";
 import { EmbedCodeSection } from "./EmbedCodeSection";
 import { WidgetPreview } from "@/components/widget/WidgetPreview";
 import { SavedAgentsList, type SavedAgent } from "./SavedAgentsList";
+import { MessageCircle, X } from "lucide-react";
 
 /* Reusable structural section title matching corporate identity layout */
 function PanelTitle({ children }: { children: React.ReactNode }) {
@@ -22,7 +23,7 @@ function PanelTitle({ children }: { children: React.ReactNode }) {
 }
 
 export function DashboardContent() {
-  const { data: session }            = useSession();
+  const { data: session, status }      = useSession();
   const { loadAgent, activeAgentId } = useAgentStore();
 
   /* Stable refs so fetchAgents doesn't re-create on every activeAgentId change,
@@ -34,6 +35,8 @@ export function DashboardContent() {
 
   const [agents,        setAgents]        = useState<SavedAgent[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const fetchAgents = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -55,6 +58,13 @@ export function DashboardContent() {
     }
   }, [session?.user?.id]);
 
+  /* Check verification status */
+  useEffect(() => {
+    if (status === "authenticated") {
+      setIsVerified(true);
+    }
+  }, [status]);
+
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
 
   const handleDelete = useCallback(async (id: string) => {
@@ -69,6 +79,27 @@ export function DashboardContent() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 h-[calc(100vh-64px)] overflow-hidden">
+
+      {/* Chat Preview Modal */}
+      {chatOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <h3 className="text-sm font-bold text-slate-900">Chat Preview</h3>
+              <button
+                onClick={() => setChatOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <WidgetPreview />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ════════════════════════════════════
           LEFT — Dashboard Control Panel (col-span-7)
          ════════════════════════════════════ */}
@@ -110,7 +141,14 @@ export function DashboardContent() {
 
           {/* Preview canvas */}
           <div className="flex-1 px-4 sm:px-6 pb-6 lg:pb-8 overflow-hidden">
-            <div className="h-full flex flex-col bg-white border border-slate-100 rounded-xl">
+            <div 
+              className="h-full flex flex-col bg-white border border-slate-100 rounded-xl transition-all duration-500"
+              style={{
+                filter: isVerified ? 'none' : 'blur(8px)',
+                pointerEvents: isVerified ? 'auto' : 'none',
+                opacity: isVerified ? 1 : 0.6,
+              }}
+            >
               <WidgetPreview />
             </div>
           </div>

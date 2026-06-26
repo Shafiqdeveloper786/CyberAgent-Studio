@@ -4,8 +4,9 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, BookOpen, GitBranch, Code2, BarChart2, Settings, Zap } from "lucide-react";
+import { Bot, BookOpen, GitBranch, Code2, BarChart2, Settings, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const NAV_ITEMS = [
   { label: "Agent Space",     href: "/dashboard",    icon: Bot       },
@@ -13,6 +14,7 @@ const NAV_ITEMS = [
   { label: "Workflow",       href: "/workflow",        icon: GitBranch },
   { label: "Embed Code",     href: "/embed-code",      icon: Code2     },
   { label: "Analytics",      href: "/analytics",       icon: BarChart2 },
+  { label: "Customer Inquiries", href: "/admin/customer-inquiries", icon: AlertCircle },
 ];
 
 const MIN_W     = 160;
@@ -73,26 +75,12 @@ export function Sidebar() {
       {/* ── Logo / toggle ── */}
       <button
         onClick={toggleCollapse}
-        className="flex items-center gap-3 px-4 py-5 shrink-0 w-full text-left group relative"
+        className="flex items-center justify-center px-4 py-6 shrink-0 w-full text-left group relative"
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
-        <div className="flex items-center justify-center w-8 h-8 rounded-xl shrink-0 transition-all duration-300 group-hover:scale-105 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 group-hover:border-blue-400 shadow-sm">
-          <Zap size={14} className="text-blue-600 fill-blue-600/10" />
+        <div className="w-full max-w-[160px]">
+          <BrandLogo variant="icon-only" width={160} height={160} />
         </div>
-
-        <AnimatePresence initial={false}>
-          {!collapsed && (
-            <motion.span
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -6 }}
-              transition={{ duration: 0.14 }}
-              className="text-[13px] font-extrabold text-slate-900 tracking-tight whitespace-nowrap"
-            >
-              CyberAgent Studio
-            </motion.span>
-          )}
-        </AnimatePresence>
       </button>
 
       <div className="mx-4 mb-4 h-px bg-slate-100" />

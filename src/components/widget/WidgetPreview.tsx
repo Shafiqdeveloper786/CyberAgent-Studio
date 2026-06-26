@@ -5,6 +5,7 @@ import { useAgentStore, type Theme } from "@/store/agentStore";
 import { useLiveChat } from "@/hooks/useLiveChat";
 import { cn } from "@/lib/utils";
 import { Send, MoreHorizontal, Bot } from "lucide-react";
+import Image from "next/image";
 
 /* ═══════════════════════════════════════════
    Theme helpers
@@ -100,8 +101,22 @@ function TypingIndicator({
 ═══════════════════════════════════════════ */
 export function WidgetPreview() {
   const { config, activeAgentId } = useAgentStore();
-  const t      = getThemeStyles(config.theme, config.accentColor);
+  // Force white theme for dashboard preview - override all theme settings
+  const t      = getThemeStyles("corporate-light", config.accentColor);
   const endRef = useRef<HTMLDivElement>(null);
+  
+  // Force white background styles
+  const forcedStyles = {
+    widgetBg: "#ffffff",
+    widgetBorder: "rgba(0,0,0,0.1)",
+    headerBg: "#f8fafc",
+    text: "#1e293b",
+    subText: "#64748b",
+    userBubbleBg: config.accentColor,
+    userBubbleText: "#ffffff",
+    agentBubbleBg: "#f1f5f9",
+    agentBubbleText: "#1e293b",
+  };
 
   /* Build stable initial messages that change only when agent / welcome text changes */
   const initialMessages = useMemo(() => [{
@@ -133,7 +148,7 @@ export function WidgetPreview() {
       >
         {/* Tab bar */}
         <div
-          className="shrink-0 flex items-center gap-2 px-4 py-3 bg-slate-100/80 border-b border-slate-200/60"
+          className="shrink-0 flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200"
         >
           <div className="flex items-center gap-1.5">
             {t.browserDotColors.map((c, i) => (
@@ -141,12 +156,12 @@ export function WidgetPreview() {
             ))}
           </div>
           <div
-            className="mx-2 px-3 py-1 rounded-t text-[11px] font-semibold text-slate-900 flex-1 max-w-[180px] bg-white/95 border-t border-x border-slate-200/60"
+            className="mx-2 px-3 py-1 rounded-t-lg text-[11px] font-semibold text-slate-900 flex-1 max-w-[180px] bg-white border-t border-x border-slate-200 shadow-sm"
           >
             Live Preview
           </div>
           <div
-            className="flex-1 h-6 max-w-[220px] rounded px-2 flex items-center text-[11px] text-slate-600 bg-slate-200/40 border border-slate-200/60"
+            className="flex-1 h-6 max-w-[220px] rounded-lg px-2 flex items-center text-[11px] text-slate-500 bg-white border border-slate-200"
           >
             cyberagent-studio.com
           </div>
@@ -154,59 +169,64 @@ export function WidgetPreview() {
 
         {/* Browser content */}
         <div
-          className="flex-1 flex items-center justify-center overflow-hidden p-4 bg-slate-50/50"
+          className="flex-1 flex items-center justify-center overflow-hidden p-6 bg-gradient-to-br from-slate-50 to-slate-100"
           style={{ minHeight: 0 }}
         >
           {/* ── Chat Widget ── */}
           <div
-            className="w-full rounded-2xl overflow-hidden flex flex-col shadow-2xl"
+            className="w-full rounded-2xl overflow-hidden flex flex-col"
             style={{
-              background: t.widgetBg,
-              border:     `1px solid ${t.widgetBorder}`,
-              maxWidth:   "min(360px, 100%)",
-              height:     "min(520px, 100%)",
-              boxShadow:  config.theme === "corporate-light"
-                ? `0 0 40px ${config.accentColor}10, 0 24px 64px rgba(0,0,0,0.12)`
-                : config.theme === "cyberpunk"
-                ? `0 0 40px ${config.accentColor}18, 0 24px 64px rgba(0,0,0,0.6)`
-                : "0 24px 64px rgba(0,0,0,0.4)",
+              background: "#ffffff",
+              border:     "1px solid rgba(0,0,0,0.08)",
+              maxWidth:   "min(380px, 100%)",
+              height:     "min(540px, 100%)",
+              boxShadow:  "0 4px 6px rgba(0,0,0,0.02), 0 12px 24px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)",
             }}
           >
             {/* Widget header */}
             <div
               className="flex items-center justify-between px-4 py-3 shrink-0"
-              style={{ background: t.headerBg, borderBottom: `1px solid ${t.widgetBorder}` }}
+              style={{ 
+                background: "#f8fafc",
+                borderBottom: "1px solid rgba(0,0,0,0.06)"
+              }}
             >
               <div className="flex items-center gap-2.5">
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center"
                   style={{
-                    background: `linear-gradient(135deg,${config.accentColor}40,${config.accentColor}20)`,
-                    border:     `1px solid ${config.accentColor}40`,
-                    boxShadow:  `0 0 10px ${config.accentColor}25`,
+                    background: `linear-gradient(135deg,${config.accentColor}35,${config.accentColor}15)`,
+                    border:     `1px solid ${config.accentColor}30`,
+                    boxShadow:  `0 2px 8px ${config.accentColor}20`,
                   }}
                 >
                   <Bot size={14} style={{ color: config.accentColor }} />
                 </div>
                 <div>
-                  <p className="text-[12px] font-semibold leading-none" style={{ color: t.text }}>
-                    {config.name || "Agent"}
+                <p className="text-[12px] font-semibold leading-none" style={{ color: "#1e293b" }}>
+                  {config.name || "Agent"}
+                </p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <div
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      background: isLoading ? config.accentColor : "#00ff94",
+                      animation:  "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite",
+                    }}
+                  />
+                  <p className="text-[10px]" style={{ color: "#64748b" }}>
+                    {isLoading ? "Responding…" : "Online"}
                   </p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <div
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{
-                        background: isLoading ? config.accentColor : "#00ff94",
-                        animation:  "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite",
-                      }}
-                    />
-                    <p className="text-[10px]" style={{ color: t.subText }}>
-                      {isLoading ? "Responding…" : "Online"}
-                    </p>
-                  </div>
+                </div>
                 </div>
               </div>
-              <MoreHorizontal size={16} style={{ color: t.subText }} />
+              <Image
+                src="/assets/logo_final.png"
+                alt="CyberAgent Studio"
+                width={80}
+                height={24}
+                className="h-6 w-auto object-contain"
+              />
             </div>
 
             {/* Messages — scrollable */}
@@ -246,8 +266,8 @@ export function WidgetPreview() {
                         msg.role === "user" ? "rounded-2xl rounded-tr-sm" : "rounded-2xl rounded-tl-sm"
                       )}
                       style={{
-                        background: msg.role === "user" ? t.userBubbleBg    : t.agentBubbleBg,
-                        color:      msg.role === "user" ? t.userBubbleText  : t.agentBubbleText,
+                        background: msg.role === "user" ? config.accentColor : "#f1f5f9",
+                        color:      msg.role === "user" ? "#ffffff" : "#1e293b",
                       }}
                     >
                       {msg.content}
@@ -269,7 +289,7 @@ export function WidgetPreview() {
             <form
               onSubmit={handleSubmit}
               className="shrink-0 flex items-center gap-2 px-3 py-2.5"
-              style={{ borderTop: `1px solid ${t.widgetBorder}` }}
+              style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
             >
               <input
                 value={input}
@@ -277,7 +297,7 @@ export function WidgetPreview() {
                 placeholder={isLoading ? "Waiting for response…" : "Type a message…"}
                 disabled={isLoading}
                 className="flex-1 text-[11px] bg-transparent outline-none disabled:opacity-40"
-                style={{ color: t.text }}
+                style={{ color: "#1e293b" }}
               />
               <button
                 type="submit"
@@ -291,6 +311,26 @@ export function WidgetPreview() {
                 <Send size={10} style={{ color: canSend ? "#050505" : t.subText }} />
               </button>
             </form>
+
+            {/* Powered by footer */}
+            <div
+              className="shrink-0 flex items-center justify-center gap-1.5 px-3 py-2"
+              style={{ 
+                background: "#f8fafc !important",
+                borderTop: "1px solid rgba(0,0,0,0.1) !important",
+              }}
+            >
+              <span className="text-[9px] font-medium" style={{ color: "#64748b !important" }}>
+                Powered by
+              </span>
+              <Image
+                src="/assets/logo_final.png"
+                alt="CyberAgent Studio"
+                width={60}
+                height={16}
+                className="h-3 w-auto object-contain"
+              />
+            </div>
           </div>
         </div>
       </div>

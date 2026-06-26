@@ -537,14 +537,6 @@ export function WorkflowBuilder() {
         </AnimatePresence>
       </div>
 
-      {/* MOBILE FAB + DRAWER */}
-      <div className="sm:hidden">
-        <button
-          onClick={() => setMobileDrawer(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 bg-blue-600 text-white shadow-lg"
-        >
-          <Plus size={22} />
-        </button>
 
         <AnimatePresence>
           {mobileDrawer && (
@@ -597,8 +589,6 @@ export function WorkflowBuilder() {
             </>
           )}
         </AnimatePresence>
-      </div>
-
     </div>
   );
 }

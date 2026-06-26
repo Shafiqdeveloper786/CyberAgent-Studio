@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Send, ChevronDown, X } from "lucide-react";
 import { useLiveChat, type ChatMessage } from "@/hooks/useLiveChat";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface Props {
   agentId:     string;
@@ -130,12 +131,25 @@ export function WidgetChat({ agentId, agentName, accentColor }: Props) {
   const canSend = input.trim().length > 0 && !isLoading && !isLimitReached;
 
   return (
-    <div className="flex flex-col" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(5,5,12,0.98)", touchAction: "auto", overflow: "hidden" }}>
-
+    <div className="flex flex-col" style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      touchAction: "auto",
+      overflow: "hidden",
+      background: "#ffffff",
+      color: "#1e293b",
+      fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    }}>
       {/* ── Header ── */}
       <div
-        className="shrink-0 flex items-center gap-3 px-4 py-3"
-        style={{ background: "rgba(0,0,0,0.5)", borderBottom: `1px solid ${accent}20`, boxShadow: `0 1px 0 ${accent}10` }}
+        className="shrink-0 flex items-center justify-between px-4 py-3"
+        style={{
+          background: "#f8fafc",
+          borderBottom: "1px solid rgba(0,0,0,0.1)"
+        }}
       >
         <div
           className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
@@ -144,20 +158,31 @@ export function WidgetChat({ agentId, agentName, accentColor }: Props) {
           <BotIcon size={17} color={accent} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-semibold text-[#e2e8f0] leading-none truncate">{agentName}</p>
-          <div className="flex items-center gap-1.5 mt-0.5">
+        <p style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", margin: 0, lineHeight: 1 }}>{agentName}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
             <div
-              className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
                 background: isLimitReached ? "#f87171" : isLoading ? accent : "#00ff94",
-                animation:  "pulse 2s cubic-bezier(.4,0,.6,1) infinite",
+                animation: "pulse 2s cubic-bezier(.4,0,.6,1) infinite",
               }}
             />
-            <p className="text-[10px] text-[#64748b]">
+            <p style={{ fontSize: 10, color: "#64748b", margin: 0 }}>
               {isLimitReached ? "Limit reached" : isLoading ? "Responding…" : "Online"}
             </p>
           </div>
         </div>
+
+        {/* Logo */}
+        <Image
+          src="/assets/logo_final.png"
+          alt="CyberAgent Studio"
+          width={80}
+          height={24}
+          className="h-6 w-auto object-contain"
+        />
 
         {/* ── Inner close button — raw postMessage to embed.js, SES-safe ── */}
         <button
@@ -165,26 +190,26 @@ export function WidgetChat({ agentId, agentName, accentColor }: Props) {
           aria-label="Close chat"
           className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-150"
           style={{
-            background:   "rgba(255,255,255,0.06)",
-            border:       `1px solid ${accent}20`,
+            background:   "rgba(0,0,0,0.05)",
+            border:       "1px solid rgba(0,0,0,0.1)",
             touchAction:  "manipulation",
             userSelect:   "none",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background   = `${accent}18`;
-            e.currentTarget.style.borderColor  = `${accent}50`;
+            e.currentTarget.style.background   = "rgba(0,0,0,0.1)";
+            e.currentTarget.style.borderColor  = "rgba(0,0,0,0.2)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background   = "rgba(255,255,255,0.06)";
-            e.currentTarget.style.borderColor  = `${accent}20`;
+            e.currentTarget.style.background   = "rgba(0,0,0,0.05)";
+            e.currentTarget.style.borderColor  = "rgba(0,0,0,0.1)";
           }}
         >
-          <X size={13} style={{ color: accent }} />
+          <X size={13} style={{ color: "#1e293b" }} />
         </button>
       </div>
 
       {/* ── Messages ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ minHeight: 0 }}>
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ minHeight: 0, background: "#ffffff" }}>
         {messages.map((msg) => {
           /* Rate-limit bubble — special render */
           if (msg.type === "limit") {
@@ -205,19 +230,22 @@ export function WidgetChat({ agentId, agentName, accentColor }: Props) {
               )}
 
               <div className={cn(msg.role === "user" ? "max-w-[82%]" : "max-w-[85%]")}>
-                {msg.role === "assistant" && (
-                  <p className="text-[10px] mb-1 font-semibold text-[#475569]">{agentName}</p>
-                )}
+              {msg.role === "assistant" && (
+                <p style={{ fontSize: 10, fontWeight: 600, color: "#64748b", margin: 0, marginBottom: 4 }}>{agentName}</p>
+              )}
                 <div
-                  className={cn(
-                    "px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words",
-                    msg.role === "user" ? "rounded-2xl rounded-tr-sm" : "rounded-2xl rounded-tl-sm"
-                  )}
-                  style={
-                    msg.role === "user"
-                      ? { background: accent, color: "#050505", fontWeight: 500 }
-                      : { background: "rgba(255,255,255,0.07)", color: "#e2e8f0", border: "1px solid rgba(255,255,255,0.08)" }
-                  }
+                  style={{
+                    padding: "10px 14px",
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                    background: msg.role === "user" ? accent : "#f1f5f9",
+                    color: msg.role === "user" ? "#ffffff" : "#1e293b",
+                    fontWeight: msg.role === "user" ? 500 : 400,
+                    border: msg.role === "user" ? "none" : "1px solid rgba(0,0,0,0.1)",
+                  }}
                 >
                   {msg.content}
                 </div>
@@ -297,12 +325,12 @@ export function WidgetChat({ agentId, agentName, accentColor }: Props) {
       )}
 
       {/* ── Input ── */}
-      <form
+        <form
         onSubmit={handleSubmit}
         className="shrink-0 flex items-center gap-2.5 px-4 py-3"
         style={{
-          borderTop:  `1px solid ${isLimitReached ? "rgba(248,113,113,0.2)" : `${accent}18`}`,
-          background: "rgba(0,0,0,0.3)",
+          borderTop:  `1px solid ${isLimitReached ? "rgba(248,113,113,0.2)" : "rgba(0,0,0,0.1)"}`,
+          background: "#ffffff",
         }}
       >
         <input
@@ -314,8 +342,8 @@ export function WidgetChat({ agentId, agentName, accentColor }: Props) {
                              "Type a message…"
           }
           disabled={isLoading || isLimitReached}
-          className="flex-1 bg-transparent text-[13px] text-[#e2e8f0] outline-none placeholder:text-[#334155] disabled:opacity-50"
-          style={{ touchAction: "auto" }}
+          className="flex-1 bg-transparent text-[13px] outline-none disabled:opacity-50"
+          style={{ touchAction: "auto", color: "#1e293b" }}
         />
         <button
           type="submit"
@@ -333,15 +361,18 @@ export function WidgetChat({ agentId, agentName, accentColor }: Props) {
       {/* ── "Powered by" footer ── */}
       <div
         className="shrink-0 flex items-center justify-center gap-1.5 py-2"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
+        style={{ borderTop: "1px solid rgba(0,0,0,0.1)", background: "#f8fafc" }}
       >
-        <BotIcon size={10} color="#475569" />
-        <span
-          className="text-[9px] font-bold tracking-[0.08em] uppercase"
-          style={{ background: "linear-gradient(90deg,#00f2ff,#a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
-        >
-          Developed by CyberAgent
+        <span style={{ fontSize: 9, fontWeight: 500, color: "#64748b" }}>
+          Powered by
         </span>
+        <Image
+          src="/assets/logo_final.png"
+          alt="CyberAgent Studio"
+          width={60}
+          height={16}
+          style={{ maxHeight: 16, width: "auto" }}
+        />
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="h-full bg-[#050505] text-[#e2e8f0] antialiased">
+      <body className="h-full antialiased">
         <Providers>{children}</Providers>
 
         {/*

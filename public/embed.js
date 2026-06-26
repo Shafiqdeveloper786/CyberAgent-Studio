@@ -80,10 +80,8 @@
   /* ── 4. SVG icons ── */
   var BOT_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"' +
-    ' fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
-    '<rect x="3" y="11" width="18" height="10" rx="2"/>' +
-    '<path d="M12 11V7"/><circle cx="12" cy="5" r="2"/>' +
-    '<path d="M8 15h0M16 15h0"/>' +
+    ' fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>' +
     '</svg>';
 
   var CLOSE_SVG =
@@ -174,9 +172,9 @@
       "  border-radius: 16px    !important;",
       "  bottom:        24px    !important;",
       "  right:         24px    !important;",
-      "  background:    #050508 !important;",
+      "  background:    #ffffff !important;",
       "  transform:     none    !important;",
-      "  box-shadow:    0 12px 40px rgba(0,0,0,.65), 0 0 0 1px " + A + "22 !important;",
+      "  box-shadow:    0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.1) !important;",
       "}",
 
       /* iframe: hidden + inert when collapsed */
@@ -265,7 +263,7 @@
       "    transform:     none        !important;",
       "    transition:    none        !important;",
       "    z-index:       2147483647  !important;",
-      "    background:    #050508     !important;",
+      "    background:    #ffffff     !important;",
       "  }",
 
       /* Hide launcher button — eliminates touch-target collision */
@@ -314,7 +312,7 @@
     /* ── 6d. Button ── */
     btn = document.createElement("button");
     btn.id = "nexa-widget-btn";
-    btn.setAttribute("aria-label", "Open CyberAgent chat");
+    btn.setAttribute("aria-label", "Open chat");
     btn.innerHTML = BOT_SVG;
     container.appendChild(btn);
 

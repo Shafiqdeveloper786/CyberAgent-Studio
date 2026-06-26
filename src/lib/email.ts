@@ -97,6 +97,14 @@ function buildOtpHtml(otp: string, to: string): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;">
   <tr>
     <td align="center" style="padding:40px 16px;">
+        <!-- Logo -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin-bottom:24px;">
+          <tr>
+            <td align="center">
+              <div style="font-size:32px;font-weight:900;color:#2563eb;letter-spacing:-1px;">CyberAgent Studio</div>
+            </td>
+          </tr>
+        </table>
       <!-- Card -->
       <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
 
@@ -178,7 +186,7 @@ function buildOtpHtml(otp: string, to: string): string {
               Never share this code with anyone &mdash; our team will never ask for it.
             </p>
             <p style="color:#94a3b8;font-size:11px;margin:10px 0 0;">
-              &copy; 2025 CyberAgent Studio &mdash; AI Chatbot Builder
+              &copy; 2026 CyberAgent Studio &mdash; AI Chatbot Builder
             </p>
           </td>
         </tr>
@@ -204,7 +212,7 @@ function buildOtpText(otp: string, to: string): string {
     "",
     "If you did not request this, please ignore this email.",
     "",
-    "© 2025 CyberAgent Studio",
+    "© 2026 CyberAgent Studio",
   ].join("\n");
 }
 
@@ -242,6 +250,372 @@ export async function verifySmtp(): Promise<void> {
  * Assumes verifySmtp() has already been called by the caller.
  * Falls back to a terminal log in dev when credentials are absent.
  */
+/* ═══════════════════════════════════════════════════
+   Support Ticket Email Templates
+═══════════════════════════════════════════════════ */
+function buildSupportTicketHtml(ticketId: string, subject: string, contactName: string, message: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Support Ticket Confirmation</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <!-- Logo -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin-bottom:24px;">
+          <tr>
+            <td align="center">
+              <div style="font-size:32px;font-weight:900;color:#2563eb;letter-spacing:-1px;">CyberAgent Studio</div>
+            </td>
+          </tr>
+        </table>
+        <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+          <tr>
+            <td style="height:4px;background:#2563eb;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:36px 40px 20px;">
+              <h1 style="color:#0f172a;font-size:24px;font-weight:800;margin:0;">Support Ticket Received</h1>
+              <p style="color:#64748b;font-size:14px;margin:10px 0 0;">We've received your inquiry and will respond soon.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 40px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+                <tr>
+                  <td style="padding:8px 0;">
+                    <strong style="color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Ticket ID:</strong>
+                    <span style="color:#1e293b;font-size:13px;margin-left:8px;font-family:monospace;">${ticketId}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;">
+                    <strong style="color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Subject:</strong>
+                    <span style="color:#1e293b;font-size:13px;margin-left:8px;">${subject}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;">
+                    <strong style="color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Status:</strong>
+                    <span style="color:#2563eb;font-size:13px;margin-left:8px;font-weight:600;">Pending</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+                <tr>
+                  <td>
+                    <strong style="color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Your Message:</strong>
+                    <p style="color:#1e293b;font-size:13px;margin-top:8px;line-height:1.6;white-space:pre-wrap;">${message}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:20px 40px 32px;">
+              <p style="color:#64748b;font-size:12px;margin:0;line-height:1.7;">
+                Thank you for contacting us, ${contactName}!<br/>
+                Our team will review your ticket and get back to you shortly.
+              </p>
+              <p style="color:#94a3b8;font-size:11px;margin:10px 0 0;">&copy; 2026 CyberAgent Studio</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function buildAdminNotificationHtml(ticketId: string, subject: string, contactName: string, contactEmail: string, message: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>New Support Ticket</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <!-- Logo -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin-bottom:24px;">
+          <tr>
+            <td align="center">
+              <div style="font-size:32px;font-weight:900;color:#dc2626;letter-spacing:-1px;">CyberAgent Studio</div>
+            </td>
+          </tr>
+        </table>
+        <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+          <tr>
+            <td style="height:4px;background:#dc2626;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:36px 40px 20px;">
+              <h1 style="color:#0f172a;font-size:24px;font-weight:800;margin:0;">🔔 New Support Ticket</h1>
+              <p style="color:#64748b;font-size:14px;margin:10px 0 0;">A new customer inquiry has been submitted.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 40px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;">
+                <tr>
+                  <td style="padding:8px 0;">
+                    <strong style="color:#991b1b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Ticket ID:</strong>
+                    <span style="color:#1e293b;font-size:13px;margin-left:8px;font-family:monospace;">${ticketId}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;">
+                    <strong style="color:#991b1b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">From:</strong>
+                    <span style="color:#1e293b;font-size:13px;margin-left:8px;">${contactName} (${contactEmail})</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;">
+                    <strong style="color:#991b1b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Subject:</strong>
+                    <span style="color:#1e293b;font-size:13px;margin-left:8px;">${subject}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;">
+                <tr>
+                  <td>
+                    <strong style="color:#991b1b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Message:</strong>
+                    <p style="color:#1e293b;font-size:13px;margin-top:8px;line-height:1.6;white-space:pre-wrap;">${message}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:20px 40px 32px;">
+              <p style="color:#64748b;font-size:12px;margin:0;line-height:1.7;">
+                Please respond to this ticket from the admin panel.<br/>
+                The customer will be notified when you reply.
+              </p>
+<p style="color:#94a3b8;font-size:11px;margin:10px 0 0;">&copy; 2026 CyberAgent Studio</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Send confirmation email to user when they submit a support ticket
+ */
+export async function sendSupportTicketEmail(params: {
+  to: string;
+  name: string;
+  ticketId: string;
+  subject: string;
+  message?: string;
+}): Promise<void> {
+  const { to, name, ticketId, subject, message } = params;
+
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log(`[email] SMTP not configured — skipping support ticket email to ${to}`);
+    return;
+  }
+
+  const transport = makeTransporter();
+  const from = process.env.EMAIL_FROM ?? `CyberAgent Studio <${process.env.EMAIL_USER}>`;
+
+  try {
+    await transport.sendMail({
+      from,
+      to,
+      subject: `Support Ticket Confirmed: ${subject}`,
+      text: `Dear ${name},\n\nYour support ticket has been received.\n\nTicket ID: ${ticketId}\nSubject: ${subject}\nStatus: Pending\n\nWe will respond to you shortly.\n\nThank you,\nCyberAgent Studio Team`,
+      html: buildSupportTicketHtml(ticketId, subject, name, message || ""),
+      headers: {
+        "X-Priority": "3",
+        "X-Mailer": "CyberAgent-Studio-Mailer",
+      },
+    });
+    console.log(`[email] ✓ Support ticket confirmation sent to ${to}`);
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    console.error(`[email] ✗ Failed to send support ticket email to ${to}:`, raw);
+    throw new SmtpError("SEND_FAILED", "Failed to send support ticket confirmation email.", raw);
+  }
+}
+
+/**
+ * Send notification email to admin when a new support ticket is created
+ */
+export async function sendAdminNotificationEmail(params: {
+  to: string;
+  ticketId: string;
+  subject: string;
+  contactName: string;
+  contactEmail: string;
+  message: string;
+}): Promise<void> {
+  const { to, ticketId, subject, contactName, contactEmail, message } = params;
+
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log(`[email] SMTP not configured — skipping admin notification to ${to}`);
+    return;
+  }
+
+  const transport = makeTransporter();
+  const from = process.env.EMAIL_FROM ?? `CyberAgent Studio <${process.env.EMAIL_USER}>`;
+
+  try {
+    await transport.sendMail({
+      from,
+      to,
+      subject: `New Support Ticket: ${subject}`,
+      text: `New Support Ticket Received\n\nTicket ID: ${ticketId}\nFrom: ${contactName} (${contactEmail})\nSubject: ${subject}\n\nPlease respond from the admin panel.`,
+      html: buildAdminNotificationHtml(ticketId, subject, contactName, contactEmail, message),
+      headers: {
+        "X-Priority": "1",
+        "X-Mailer": "CyberAgent-Studio-Mailer",
+      },
+    });
+    console.log(`[email] ✓ Admin notification sent to ${to}`);
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    console.error(`[email] ✗ Failed to send admin notification to ${to}:`, raw);
+    throw new SmtpError("SEND_FAILED", "Failed to send admin notification email.", raw);
+  }
+}
+
+/**
+ * Send reply notification email to user when admin responds to their ticket
+ */
+export async function sendReplyNotificationEmail(params: {
+  to: string;
+  name: string;
+  ticketId: string;
+  subject: string;
+  adminReply: string;
+}): Promise<void> {
+  const { to, name, ticketId, subject, adminReply } = params;
+
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log(`[email] SMTP not configured — skipping reply notification to ${to}`);
+    return;
+  }
+
+  const transport = makeTransporter();
+  const from = process.env.EMAIL_FROM ?? `CyberAgent Studio <${process.env.EMAIL_USER}>`;
+
+  try {
+    await transport.sendMail({
+      from,
+      to,
+      subject: `Re: ${subject}`,
+      text: `Dear ${name},\n\nWe have responded to your support ticket.\n\nTicket ID: ${ticketId}\nSubject: ${subject}\n\nAdmin Reply:\n${adminReply}\n\nPlease log in to your dashboard to view the full conversation.\n\nThank you,\nCyberAgent Studio Team`,
+      html: buildReplyNotificationHtml(ticketId, subject, name, adminReply),
+      headers: {
+        "X-Priority": "2",
+        "X-Mailer": "CyberAgent-Studio-Mailer",
+      },
+    });
+    console.log(`[email] ✓ Reply notification sent to ${to}`);
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    console.error(`[email] ✗ Failed to send reply notification to ${to}:`, raw);
+    throw new SmtpError("SEND_FAILED", "Failed to send reply notification email.", raw);
+  }
+}
+
+function buildReplyNotificationHtml(ticketId: string, subject: string, contactName: string, adminReply: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Reply to Your Support Ticket</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <!-- Logo -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin-bottom:24px;">
+          <tr>
+            <td align="center">
+              <div style="font-size:32px;font-weight:900;color:#10b981;letter-spacing:-1px;">CyberAgent Studio</div>
+            </td>
+          </tr>
+        </table>
+        <table role="presentation" width="100%" style="max-width:520px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+          <tr>
+            <td style="height:4px;background:#10b981;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:36px 40px 20px;">
+              <h1 style="color:#0f172a;font-size:24px;font-weight:800;margin:0;">We've Replied to Your Ticket</h1>
+              <p style="color:#64748b;font-size:14px;margin:10px 0 0;">Our support team has responded to your inquiry.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 40px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+                <tr>
+                  <td style="padding:8px 0;">
+                    <strong style="color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Ticket ID:</strong>
+                    <span style="color:#1e293b;font-size:13px;margin-left:8px;font-family:monospace;">${ticketId}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;">
+                    <strong style="color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Subject:</strong>
+                    <span style="color:#1e293b;font-size:13px;margin-left:8px;">${subject}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;">
+                <tr>
+                  <td>
+                    <strong style="color:#166534;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Admin Reply:</strong>
+                    <p style="color:#1e293b;font-size:13px;margin-top:8px;line-height:1.6;white-space:pre-wrap;">${adminReply}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:20px 40px 32px;">
+              <p style="color:#64748b;font-size:12px;margin:0;line-height:1.7;">
+                Thank you for your patience, ${contactName}!
+              </p>
+              <p style="color:#94a3b8;font-size:11px;margin:10px 0 0;">&copy; 2026 CyberAgent Studio</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 export async function sendOtpEmail(to: string, otp: string): Promise<void> {
   /* ── Dev mode: no config → print OTP to terminal ── */
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {

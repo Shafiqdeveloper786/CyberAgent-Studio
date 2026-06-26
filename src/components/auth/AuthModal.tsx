@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Mail, Zap, ArrowRight, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
+import { X, Mail, Zap, ArrowRight, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
@@ -180,7 +180,10 @@ export function AuthModal() {
         return;
       }
       setStep("success");
-      setTimeout(() => { router.push("/dashboard"); router.refresh(); closeModal(); }, 2000);
+      // Immediate redirect to main dashboard
+      router.push("/dashboard"); 
+      router.refresh(); 
+      closeModal(); 
     } catch {
       setOtpError("Verification failed. Please try again.");
     } finally {
@@ -217,7 +220,7 @@ export function AuthModal() {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* ── Crisp dark backdrop (no blur — dashboard blur-sm handles that) ── */}
+          {/* ── Crisp dark backdrop (no close on click) ── */}
           <motion.div
             key="backdrop"
             variants={backdropV}
@@ -225,7 +228,6 @@ export function AuthModal() {
             transition={{ duration: 0.25 }}
             className="fixed inset-0 z-[100]"
             style={{ background: "rgba(15,23,42,0.55)" }}
-            onClick={(e) => e.target === e.currentTarget && closeModal()}
           />
 
           {/* ── Foreground modal portal (crisp, no blur) ── */}
@@ -238,11 +240,15 @@ export function AuthModal() {
             {/* ── Premium White Card ── */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl p-10 relative overflow-hidden">
 
-              {/* ── Header ── */}
-              <div className="flex flex-col items-center gap-3 mb-8">
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/20">
-                  <Zap size={20} className="text-white" />
-                </div>
+              {/* ── Header with Logo ── */}
+              <div className="flex flex-col items-center gap-5 mb-10 mt-10">
+                <img
+                  src="/assets/logo_final.png"
+                  alt="CyberAgent Studio"
+                  width={400}
+                  height={120}
+                  className="h-24 w-auto object-contain"
+                />
                 <div className="text-center">
                   <h2 className="text-slate-900 font-extrabold text-2xl tracking-tight">
                     {step === "success" ? "Welcome aboard!" : "CyberAgent Studio"}
@@ -315,7 +321,7 @@ export function AuthModal() {
                         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60 bg-blue-600 hover:bg-blue-700 shadow-sm shadow-blue-500/20"
                       >
                         {loading ? (
-                          <RefreshCw size={15} className="animate-spin" />
+                          <Loader2 size={15} className="animate-spin" />
                         ) : (
                           <><ArrowRight size={15} />Send Verification Code</>
                         )}
@@ -371,7 +377,7 @@ export function AuthModal() {
                         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 bg-blue-600 hover:bg-blue-700 shadow-sm shadow-blue-500/20"
                       >
                         {loading ? (
-                          <RefreshCw size={15} className="animate-spin" />
+                          <Loader2 size={15} className="animate-spin" />
                         ) : (
                           "Verify & Sign In"
                         )}

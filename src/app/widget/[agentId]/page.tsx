@@ -57,7 +57,7 @@ export default async function WidgetPage({ params }: Props) {
        on the chat input or close button.                              */
     <div
       className="w-full h-full flex flex-col"
-      style={{ touchAction: "auto", background: "#050508", margin: 0, padding: 0 }}
+      style={{ touchAction: "auto", background: "#ffffff", margin: 0, padding: 0 }}
     >
       <WidgetChat agentId={agentId} agentName={agentName} accentColor={agentColor} />
     </div>

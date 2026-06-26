@@ -29,6 +29,19 @@
   box-sizing: border-box;
 }
 
+/* Widget route - completely separate white theme */
+[data-widget-theme="light"] {
+  --color-background: #ffffff;
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #64748b;
+}
+
+html[data-widget-theme="light"],
+body[data-widget-theme="light"] {
+  background: #ffffff !important;
+  color: #1e293b !important;
+}
+
 html,
 body {
   height: 100%;
@@ -36,6 +49,13 @@ body {
   color: #e2e8f0;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Widget route - completely isolate from dark theme */
+#nexa-agent-root,
+#nexa-agent-root * {
+  background: #ffffff !important;
+  color: #1e293b !important;
 }
 
 /* Scrollbar */

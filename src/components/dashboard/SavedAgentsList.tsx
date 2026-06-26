@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Trash2, Bot, RefreshCw, Zap, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Trash2, Bot, RefreshCw, Zap, Check, AlertCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -82,6 +82,13 @@ export function SavedAgentsList({
     agentId:   string;
     agentName: string;
   } | null>(null);
+  
+  // Notification system for agent errors
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: "error" | "warning" | "success" | "info";
+    agentName?: string;
+  } | null>(null);
 
   const getStatus = (agent: SavedAgent): "active" | "inactive" => {
     if (agent._id in statusOverride) return statusOverride[agent._id];
@@ -144,18 +151,38 @@ export function SavedAgentsList({
       if (!res.ok) throw new Error("Toggle request failed");
       const data = (await res.json()) as { status: "active" | "inactive" };
       setStatusOverride((prev) => ({ ...prev, [agentId]: data.status }));
-      toast.success(
-        data.status === "active"
-          ? `"${agent.name}" deployment initialized.`
-          : `"${agent.name}" offline window set.`
-      );
-    } catch {
+      
+      if (data.status === "active") {
+        toast.success(`"${agent.name}" deployment initialized.`);
+      } else {
+        toast.info(`"${agent.name}" offline window set.`);
+      }
+    } catch (error) {
       setStatusOverride((prev) => ({ ...prev, [agentId]: prevStatus }));
-      toast.error("Failed to sync deployment parameters.");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to sync deployment: ${errorMessage}`);
+      
+      // Show detailed notification
+      setNotification({
+        message: `Agent "${agent.name}" encountered an error during status change: ${errorMessage}`,
+        type: "error",
+        agentName: agent.name,
+      });
+      
+      // Auto-dismiss notification after 5 seconds
+      setTimeout(() => setNotification(null), 5000);
     } finally {
       setTogglingId(null);
     }
   };
+
+  // Show notification if exists
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   return (
     <section className="space-y-3.5">
@@ -164,6 +191,43 @@ export function SavedAgentsList({
         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Saved System Agents</p>
         {loading && <RefreshCw size={12} className="animate-spin text-slate-400" />}
       </div>
+      
+      {/* Agent Error Notification Banner */}
+      {notification && (
+        <div className={`rounded-xl border p-4 shadow-sm ${
+          notification.type === "error" 
+            ? "bg-rose-50 border-rose-200 text-rose-900" 
+            : notification.type === "warning"
+            ? "bg-amber-50 border-amber-200 text-amber-900"
+            : "bg-blue-50 border-blue-200 text-blue-900"
+        }`}>
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">
+              {notification.type === "error" ? (
+                <AlertCircle size={16} className="text-rose-600" />
+              ) : notification.type === "warning" ? (
+                <AlertCircle size={16} className="text-amber-600" />
+              ) : (
+                <Check size={16} className="text-blue-600" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-slate-900">
+                {notification.agentName ? `Agent: ${notification.agentName}` : "System Notification"}
+              </p>
+              <p className="text-[11px] text-slate-700 mt-1 leading-relaxed">
+                {notification.message}
+              </p>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              className="shrink-0 p-1 rounded-lg hover:bg-white/50 transition-colors"
+            >
+              <XCircle size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Corporate Empty State Wrapper */}
       {!loading && agents.length === 0 && (
