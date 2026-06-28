@@ -28,6 +28,15 @@ import Quota from "@/models/Quota";
 import KnowledgeChunk from "@/models/KnowledgeChunk";
 import { generateEmbedding } from "@/lib/embeddings";
 import { sendDailyLimitEmail } from "@/lib/mailer";
+import { logger } from "@/lib/logger";
+import Message from "@/models/Message";
+
+/* Trusted first-party origins — requests from these may omit x-api-key */
+const TRUSTED_ORIGINS: string[] = [
+  "http://localhost:3000",
+  "https://cyber-agent-studio.vercel.app",
+  ...(process.env.NEXT_PUBLIC_APP_URL ? [process.env.NEXT_PUBLIC_APP_URL] : []),
+];
 
 const FREE_DAILY_LIMIT = 50;
 
@@ -94,23 +103,21 @@ export async function POST(req: Request) {
      Strip any HTML / script tags from user-supplied text to prevent
      XSS payloads from being reflected back through the AI response.
   ──────────────────────────────────────────────────────────────────── */
-  /* Strip HTML from string-content messages only.
-     ToolModelMessage has ToolContent (not string) so its branch is never entered
-     — the cast back to ModelMessage[] is therefore safe. */
   const safeMessages = messages.map((m) => {
-    if (typeof m.content === "string") {
-      return { ...m, content: m.content.replace(/<[^>]*>/g, "").trim() };
-    }
-    return m;
-  }) as ModelMessage[];
+    if (typeof m.content !== "string") return m;
+    return { ...m, content: m.content.replace(/<[^>]*>/g, "") };
+  }) as typeof messages;
 
-  /* ── 3. Combined API key + status gate (single DB round-trip) ─────────
-     Fetches apiKey and status together to avoid two sequential queries.
-     • If x-api-key header is present: validates it.
-     • Always: rejects inactive agents before any further processing.
-     State is read live from Atlas on every request — no session caching.
-  ──────────────────────────────────────────────────────────────────────── */
-  if (agentId) {
+  /* ── 3. API-key + Origin gate + status check ──────────────────────────────
+     Security model:
+       - x-api-key present  -> validate it; reject on mismatch (403).
+       - x-api-key absent   -> request must originate from a trusted
+                               first-party origin (Origin/Referer check).
+                               This prevents agentId (exposed in embed
+                               URLs) from being used as an open ticket.
+     Always: inactive agents rejected regardless of key / origin.
+  ────────────────────────────────────────────────────────────────────── */
+  if (agentId && agentId !== "nexcore-support") {
     const agentGate = await Agent.findById(agentId)
       .select("apiKey status")
       .lean<{ apiKey?: string; status: string }>();
@@ -120,16 +127,29 @@ export async function POST(req: Request) {
     }
 
     const providedKey = req.headers.get("x-api-key")?.trim() ?? "";
+
     if (providedKey) {
+      /* Cross-origin call with a key -- validate it */
       if (!agentGate.apiKey || agentGate.apiKey !== providedKey) {
-        console.warn(`[chat] ✗ Invalid x-api-key for agent ${agentId}`);
+        logger.warn(`[chat] x-api-key rejected for agent ${agentId}`);
         return Response.json({ error: "Invalid API key." }, { status: 403 });
       }
-      console.log(`[chat] ✓ x-api-key verified for agent ${agentId}`);
+      logger.log(`[chat] x-api-key verified for agent ${agentId}`);
+    } else {
+      /* No key -- only allow requests from a trusted first-party origin */
+      const requestOrigin = req.headers.get("origin") ?? req.headers.get("referer") ?? "";
+      const isSameOrigin  = TRUSTED_ORIGINS.some((o) => requestOrigin.startsWith(o));
+      if (!isSameOrigin) {
+        logger.warn(`[chat] Keyless cross-origin request blocked`);
+        return Response.json(
+          { error: "An API key is required for cross-origin requests." },
+          { status: 403 }
+        );
+      }
     }
 
     if (agentGate.status === "inactive") {
-      console.log(`[chat] Agent ${agentId} is inactive — request blocked`);
+      logger.log(`[chat] Agent ${agentId} is inactive`);
       return new Response(
         "Aapne apna agent deactivate kar diya hai, toh pehle activate karo.",
         { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } }
@@ -137,32 +157,37 @@ export async function POST(req: Request) {
     }
   }
 
-  /* ── 4. HARD CAP — must complete before any AI work ────────────────────
-     Uses a dedicated Quota collection keyed by (agentId, date).
-     Wrapped in try/catch so a URI-parse or DB transient error returns a
-     clean 503 instead of an unhandled rejection that some clients
-     (e.g. the widget's useLiveChat hook) misinterpret as a quota block.
-  ─────────────────────────────────────────────────────────────────────── */
-  if (agentId) {
+  /* ── 4. HARD CAP — fail-CLOSED strategy ──────────────────────────────────────
+     On DB error we return 503 rather than bypass the cap.  A brief service
+     interruption is preferable to silently allowing unlimited free usage
+     during a transient DB outage.
+  ────────────────────────────────────────────────────────────────────── */
+  if (agentId && agentId !== "nexcore-support") {
     let capBlock: Response | null;
     try {
       capBlock = await enforceFreePlanCap({ agentId, userId });
     } catch (quotaErr) {
-      const msg = quotaErr instanceof Error ? quotaErr.message : String(quotaErr);
-      console.error("[chat] Quota DB error — bypassing cap check (fail-open):", msg);
-      /* Fail-open: let the request proceed rather than falsely blocking the
-         user with a "quota exceeded" state when the real issue is a DB error. */
-      capBlock = null;
+      /* Fail-CLOSED: block rather than bypass the cap during a DB outage.
+         A brief 503 is preferable to allowing unlimited free-tier abuse. */
+      logger.error("[chat] Quota DB error -- blocking request (fail-closed)", quotaErr);
+      return Response.json(
+        { error: "Service temporarily unavailable. Please try again shortly." },
+        { status: 503 }
+      );
     }
     if (capBlock) return capBlock;
   }
 
   /* ── 5. Analytics counter (fire-and-forget — never delays the stream) ── */
-  if (agentId) {
+  if (agentId && agentId !== "nexcore-support") {
     Agent.updateOne(
       { _id: agentId },
       { $inc: { messageCount: 1 }, $set: { lastMessageAt: new Date() } }
-    ).catch((err) => console.error("[chat] Analytics update failed:", err));
+    ).catch((err) => logger.error("[chat] Analytics update failed:", err));
+
+    const lastUserMsg = messages[messages.length - 1]?.content;
+    const userText = typeof lastUserMsg === "string" ? lastUserMsg : "";
+    Message.create({ agentId, text: userText }).catch((err) => logger.error("[chat] Message log creation failed:", err));
   }
 
   /* ── 6. Build RAG system prompt ── */
@@ -385,29 +410,7 @@ function classifyGroqError(msg: string): string {
 
 /* ════════════════════════════════════════════════════════════════════════
    FREE-PLAN HARD CAP — enforceFreePlanCap
-   ─────────────────────────────────────────────────────────────────────
-   Dedicated Quota collection — one document per (agentId, date).
-   The unique compound index { agentId: 1, date: 1 } is built at
-   connection time by initCollections() in lib/mongodb.ts so it always
-   exists before the first write.
-
-   No global/memory state is consulted — every execution performs a fresh
-   direct MongoDB Atlas query. Server restarts, HMR reloads, and
-   serverless cold-starts all see the same persisted counts.
-
-   Two-gate atomic sequence:
-     Gate 1 — Idempotent upsert: ensures the (agentId, date) document
-              exists with count:0. $setOnInsert is a no-op if the
-              document was already created by an earlier request today.
-     Gate 2 — Hard-cap increment: findOneAndUpdate with
-              { count: { $lt: FREE_DAILY_LIMIT } } and upsert:false.
-              Returns the updated document if a slot was claimed, or
-              null if count was already >= FREE_DAILY_LIMIT.
-              Returning null → immediate 423 — no fallthrough to stream.
-
-   Called with NO surrounding try/catch in POST() so that a MongoDB
-   failure surfaces as a 500, never silently passes to Groq.
-════════════════════════════════════════════════════════════════════════ */
+   ───────────────────────────────────────────────────────────────────── */
 async function enforceFreePlanCap({
   agentId,
   userId: _userId,   // reserved — future per-user cross-agent cap
@@ -425,50 +428,56 @@ async function enforceFreePlanCap({
 
   /* ── Resolve agent + subscription ── */
   const agentDoc = await Agent.findById(agentId)
-    .select("userId name limitEmailSentDate")
-    .lean<{ userId: string; name: string; limitEmailSentDate: string }>();
+    .select("userId name limitEmailSentDate dailyLimit isUnlimited")
+    .lean<{ userId: string; name: string; limitEmailSentDate: string; dailyLimit?: number; isUnlimited?: boolean }>();
 
   if (!agentDoc) return null; // unknown agent — downstream returns 404
+
+  /* Unlimited mode: if the agent is specifically set to Unlimited, bypass enforceFreePlanCap */
+  if (agentDoc.isUnlimited) return null;
 
   const owner = await User.findById(agentDoc.userId)
     .select("email subscription")
     .lean<{ email: string; subscription: string }>();
 
-  if ((owner?.subscription ?? "free") !== "free") return null; // paid — no cap
+  if ((owner?.subscription ?? "free") !== "free") return null; // paid owner — no cap
+
+  const activeDailyLimit = agentDoc.dailyLimit ?? FREE_DAILY_LIMIT;
 
   /* ── Gate 1: Idempotent Find / Upsert ──────────────────────────────────
-     $setOnInsert fires ONLY when a new document is inserted by the upsert.
-     If a document for (agentId, todayUTC) already exists — including after
-     a server restart — this is a strict no-op: the existing count is
-     NEVER reset or overwritten.
-     The unique compound index enforced by MongoDB Atlas prevents two
-     concurrent Gate 1 calls from both inserting a new document.
+     Also records / syncs dailyLimit and isUnlimited on the daily Quota doc.
   ──────────────────────────────────────────────────────────────────────── */
   await Quota.updateOne(
     { agentId: oId, date: todayUTC },
-    { $setOnInsert: { count: 0 } },
+    {
+      $setOnInsert: { count: 0 },
+      $set: {
+        dailyLimit: activeDailyLimit,
+        isUnlimited: false,
+      },
+    },
     { upsert: true }
   );
 
   /* ── Gate 2: Atomic Hard-Cap Increment ─────────────────────────────────
      Explicit upsert:false — this gate must NEVER create a new document.
-     MongoDB evaluates { count: { $lt: FREE_DAILY_LIMIT } } and applies
+     MongoDB evaluates { count: { $lt: activeDailyLimit } } and applies
      $inc atomically at the document level. Only one concurrent caller can
-     claim each slot. If the document's count is already >= FREE_DAILY_LIMIT,
+     claim each slot. If the document's count is already >= activeDailyLimit,
      the filter does not match and Mongoose returns null.
   ──────────────────────────────────────────────────────────────────────── */
   const quotaDoc = await Quota.findOneAndUpdate(
-    { agentId: oId, date: todayUTC, count: { $lt: FREE_DAILY_LIMIT } },
+    { agentId: oId, date: todayUTC, count: { $lt: activeDailyLimit } },
     { $inc: { count: 1 } },
     { new: true, upsert: false }
   ).lean<{ count: number }>();
 
   if (quotaDoc) {
-    console.log(`[chat] ✓ Quota ${quotaDoc.count}/${FREE_DAILY_LIMIT} — agent ${agentId} — ${todayUTC}`);
+    logger.log(`[chat] ✓ Quota ${quotaDoc.count}/${activeDailyLimit} — agent ${agentId} — ${todayUTC}`);
     return null; // slot claimed — allow request to proceed
   }
 
-  /* ── HARD BLOCK: quotaDoc is null → count >= FREE_DAILY_LIMIT ──────────
+  /* ── HARD BLOCK: quotaDoc is null → count >= activeDailyLimit ──────────
      Absolute exit — do NOT fall through to streamText or any AI provider.
   ──────────────────────────────────────────────────────────────────────── */
   const nextMidnight = new Date();
@@ -478,7 +487,7 @@ async function enforceFreePlanCap({
   const mm      = Math.floor((secsLeft % 3600) / 60);
   const resetIn = `${hh}h ${String(mm).padStart(2, "0")}m`;
 
-  console.warn(`[chat] ✗ Hard cap reached — agent ${agentId} — ${todayUTC} — returning 423`);
+  logger.warn(`[chat] ✗ Hard cap reached — agent ${agentId} — ${todayUTC} — returning 423`);
 
   /* Isolated background email — fire-and-forget, never delays the 423.
      limitEmailSentDate guard ensures at most one email per agent per day. */
@@ -492,9 +501,9 @@ async function enforceFreePlanCap({
         Agent.updateOne(
           { _id: agentId },
           { $set: { limitEmailSentDate: todayUTC } }
-        ).catch(console.error)
+        ).catch((err) => logger.error("[chat] limitEmailSentDate update failed", err))
       )
-      .catch((e) => console.error("[chat] Limit email dispatch failed:", e));
+      .catch((e) => logger.error("[chat] Limit email dispatch failed", e));
   }
 
   const resetsInMs = nextMidnight.getTime() - Date.now();
@@ -503,7 +512,7 @@ async function enforceFreePlanCap({
     JSON.stringify({
       status:     "error",
       code:       "LIMIT_EXCEEDED",
-      message:    `You have consumed your ${FREE_DAILY_LIMIT} free messages for today. Your quota will automatically reset in ${resetIn}.`,
+      message:    `You have consumed your ${activeDailyLimit} free messages for today. Your quota will automatically reset in ${resetIn}.`,
       resetAt:    nextMidnight.toISOString(),
       resetIn,
       resetsInMs: Math.max(0, resetsInMs),
@@ -529,7 +538,7 @@ async function buildRagSystemPrompt(
   let agentName    = "Assistant";
   let agentPersona = "You are a helpful AI assistant.";
 
-  if (agentId) {
+  if (agentId && agentId !== "nexcore-support") {
     try {
       const agent = await Agent.findById(agentId)
         .select("name persona")
@@ -541,6 +550,9 @@ async function buildRagSystemPrompt(
     } catch (err) {
       console.error("[chat] Failed to fetch agent:", err);
     }
+  } else if (agentId === "nexcore-support") {
+    agentName = "NexCore AI";
+    agentPersona = "You are NexCore AI, the premier platform support agent for CyberAgent Studio. Your goal is to guide users on how to build, customize, train, embed, and deploy their own AI chat agents using CyberAgent Studio. Answer questions about knowledge base indexing, custom stylesheets, vector search quotas, and administration dashboard tools. Be helpful, professional, polite, and concise.";
   }
 
   /* ── 2. Extract last user message for embedding ── */
@@ -557,7 +569,7 @@ async function buildRagSystemPrompt(
   /* ── 3. Vector search ── */
   let contextBlock = "";
 
-  if (agentId && queryText) {
+  if (agentId && agentId !== "nexcore-support" && queryText) {
     try {
       console.log(`[chat] [1/3] Embedding query: "${queryText.slice(0, 80)}…"`);
       const { vector: queryVector, source: embedSrc } = await generateEmbedding(queryText);

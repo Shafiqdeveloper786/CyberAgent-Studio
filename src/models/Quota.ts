@@ -27,6 +27,14 @@ const quotaSchema = new Schema(
       default: 0,
       min:     0,
     },
+    dailyLimit: {
+      type:    Number,
+      default: 50,
+    },
+    isUnlimited: {
+      type:    Boolean,
+      default: false,
+    },
   },
   { timestamps: false, versionKey: false }
 );

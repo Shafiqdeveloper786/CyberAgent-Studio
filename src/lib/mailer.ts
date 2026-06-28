@@ -275,3 +275,132 @@ export async function sendWeeklyReportEmail(p: WeeklyReportPayload): Promise<voi
 </html>`,
   });
 }
+
+export interface AgentWeeklyReportPayload {
+  toEmail:       string;
+  ownerName:     string;
+  agentName:     string;
+  weekStart:     string;
+  weekEnd:       string;
+  totalMessages: number;
+  dailyAverage:  number;
+  topKeywords:   string[];
+  dashboardUrl:  string;
+}
+
+/**
+ * Sends a weekly performance report for a specific agent to its owner.
+ */
+export async function sendAgentWeeklyPerformanceReport(p: AgentWeeklyReportPayload): Promise<void> {
+  const from = (process.env.EMAIL_FROM ?? "CyberAgent Studio <muhammadshafiqchohan12@gmail.com>").trim();
+
+  const keywordsList = p.topKeywords.length > 0
+    ? p.topKeywords.map(k => `<span style="display:inline-block;padding:4px 10px;background:#f1f5f9;color:#334155;border-radius:6px;font-size:12px;font-weight:600;margin-right:6px;margin-bottom:6px">${k}</span>`).join("")
+    : "<span style='color:#94a3b8;font-size:12px;font-style:italic'>Not enough data yet</span>";
+
+  await transporter.sendMail({
+    from,
+    to:      p.toEmail,
+    subject: `Weekly Performance Report: ${p.agentName} — ${p.weekStart} to ${p.weekEnd}`,
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agent Weekly Performance Report</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+    <tr>
+      <td align="center" style="padding:40px 16px">
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%">
+          <tr>
+            <td>
+
+              <!-- White card with gradient accent -->
+              <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06)">
+
+                <!-- Gradient header -->
+                <div style="height:6px;background:linear-gradient(90deg,#3b82f6,#6366f1);"></div>
+
+                <!-- Content -->
+                <div style="padding:40px 36px">
+
+                  <!-- Logo -->
+                  <div style="text-align:center;margin:0 0 28px">
+                    <p style="margin:0;font-size:28px;font-weight:900;color:#2563eb;letter-spacing:-1px;">CyberAgent Studio</p>
+                  </div>
+
+                  <!-- Badge -->
+                  <div style="text-align:center;margin:0 0 24px">
+                    <span style="display:inline-block;padding:6px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;font-size:11px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:0.5px">
+                      🤖 Agent Analytics
+                    </span>
+                  </div>
+
+                  <!-- Heading -->
+                  <h1 style="margin:0 0 12px;font-size:26px;font-weight:800;color:#0f172a;line-height:1.3;text-align:center">
+                    Weekly Agent Performance Report
+                  </h1>
+
+                  <!-- Subtitle -->
+                  <p style="margin:0 0 28px;font-size:15px;color:#64748b;line-height:1.7;text-align:center">
+                    Hi <strong style="color:#1e293b">${p.ownerName}</strong>, here is the weekly performance update for your agent <strong style="color:#2563eb">${p.agentName}</strong>.
+                  </p>
+
+                  <!-- Stats Grid -->
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 0 24px">
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;text-align:center">
+                      <p style="margin:0 0 8px;font-size:28px;font-weight:900;color:#2563eb">${p.totalMessages.toLocaleString()}</p>
+                      <p style="margin:0;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Total Messages (7d)</p>
+                    </div>
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;text-align:center">
+                      <p style="margin:0 0 8px;font-size:28px;font-weight:900;color:#6366f1">${p.dailyAverage.toFixed(1)}</p>
+                      <p style="margin:0;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Daily Average</p>
+                    </div>
+                  </div>
+
+                  <!-- Date Range -->
+                  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:16px;margin:0 0 24px;text-align:center">
+                    <p style="margin:0;font-size:13px;color:#1e40af;line-height:1.6">
+                      📅 Report Period: <strong style="color:#2563eb">${p.weekStart}</strong> to <strong style="color:#2563eb">${p.weekEnd}</strong>
+                    </p>
+                  </div>
+
+                  <!-- Top Keywords Section -->
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:0 0 28px">
+                    <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#1e293b;text-transform:uppercase;letter-spacing:0.5px">🔍 Top User Query Keywords</p>
+                    <div style="margin:0">${keywordsList}</div>
+                  </div>
+
+                  <!-- CTA Button -->
+                  <div style="text-align:center;margin:0 0 28px">
+                    <a href="${p.dashboardUrl}"
+                       style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#2563eb,#6366f1);color:#ffffff;font-size:15px;font-weight:800;text-decoration:none;border-radius:12px;letter-spacing:0.02em;box-shadow:0 4px 16px rgba(37,99,235,0.25)">
+                      View Agent Analytics →
+                    </a>
+                  </div>
+
+                  <!-- Divider -->
+                  <div style="height:1px;background:#e2e8f0;margin:0 0 20px"></div>
+
+                  <!-- Footer -->
+                  <p style="margin:0;font-size:12px;color:#64748b;line-height:1.7;text-align:center">
+                    This is an automated weekly performance report from CyberAgent Studio.<br>
+                    You can configure your report settings in your agent's dashboard.<br><br>
+                    <strong style="color:#1e293b">CyberAgent Studio</strong> · AI Chatbot Builder
+                  </p>
+                </div>
+
+              </div>
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+  });
+}

@@ -4,6 +4,12 @@ import CredentialsProvider  from "next-auth/providers/credentials";
 import connectDB from "./mongodb";
 import User from "@/models/User";
 import VerificationToken from "@/models/VerificationToken";
+import { logger } from "@/lib/logger";
+
+/** Maximum wrong-OTP attempts before the token is locked */
+const MAX_OTP_ATTEMPTS  = 5;
+/** How long a locked token stays locked (15 minutes in ms) */
+const OTP_LOCKOUT_MS    = 15 * 60 * 1_000;
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -35,30 +41,51 @@ export const authOptions: NextAuthOptions = {
         try {
           await connectDB();
 
-          /* ── Validate OTP ── */
+          /* ── 1. Find token by email (without checking token value yet) ── */
           const vt = await VerificationToken.findOne({
             email,
-            token,
             expiresAt: { $gt: new Date() },
           });
 
           if (!vt) {
-            console.log(`[auth] OTP invalid/expired for ${email}`);
+            logger.log("[auth] OTP not found or expired");
             return null;
           }
 
-          /* ── Consume token (one-time use) ── */
-          await VerificationToken.deleteOne({ _id: vt._id });
+          /* ── 2. Brute-force lockout check ── */
+          if (vt.lockedUntil && vt.lockedUntil > new Date()) {
+            const remainingMs  = vt.lockedUntil.getTime() - Date.now();
+            const remainingMin = Math.ceil(remainingMs / 60_000);
+            logger.warn(`[auth] OTP locked — ${remainingMin}m remaining`);
+            return null;
+          }
 
-          /* ── Upsert user — set isVerified: true on every successful OTP ── */
-          const name = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "") || "user";
+          /* ── 3. Validate token value ── */
+          if (vt.token !== token) {
+            const newAttempts = (vt.attempts ?? 0) + 1;
+            const shouldLock  = newAttempts >= MAX_OTP_ATTEMPTS;
+            await VerificationToken.updateOne(
+              { _id: vt._id },
+              {
+                $set: {
+                  attempts: newAttempts,
+                  ...(shouldLock
+                    ? { lockedUntil: new Date(Date.now() + OTP_LOCKOUT_MS) }
+                    : {}),
+                },
+              }
+            );
+            logger.log(`[auth] OTP wrong — attempt ${newAttempts}/${MAX_OTP_ATTEMPTS}`);
+            return null;
+          }
 
+          /* ── 4. Correct OTP — check blocked BEFORE consuming token ── */
           const dbUser = await User.findOneAndUpdate(
             { email },
             {
               $set:         { isVerified: true },
               $setOnInsert: {
-                name,
+                name:         email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "") || "user",
                 authMethod:   "email",
                 role:         "user",
                 subscription: "free",
@@ -67,7 +94,15 @@ export const authOptions: NextAuthOptions = {
             { upsert: true, new: true, setDefaultsOnInsert: true }
           );
 
-          console.log(`[auth] OTP sign-in OK: ${dbUser._id} (${email})`);
+          if (dbUser.isBlocked) {
+            logger.log("[auth] Blocked user sign-in rejected");
+            return null;
+          }
+
+          /* ── 5. Consume token (one-time use) ── */
+          await VerificationToken.deleteOne({ _id: vt._id });
+
+          logger.log(`[auth] OTP sign-in OK: ${dbUser._id}`);
 
           return {
             id:    dbUser._id.toString(),
@@ -76,7 +111,7 @@ export const authOptions: NextAuthOptions = {
             image: dbUser.image ?? null,
           };
         } catch (err) {
-          console.error("[auth] OTP authorize error:", err);
+          logger.error("[auth] OTP authorize error", err);
           return null;
         }
       },
@@ -105,6 +140,13 @@ export const authOptions: NextAuthOptions = {
       /* Google OAuth: upsert with latest profile data */
       try {
         await connectDB();
+
+        // Check if user is blocked before logging them in
+        const existingUser = await User.findOne({ email: user.email.toLowerCase() });
+        if (existingUser?.isBlocked) {
+          console.log(`[auth] Google sign-in rejected for blocked user ${user.email}`);
+          return false;
+        }
 
         await User.findOneAndUpdate(
           { email: user.email.toLowerCase() },
@@ -149,9 +191,14 @@ export const authOptions: NextAuthOptions = {
             subscription: string;
             authMethod:   string;
             isVerified:   boolean;
+            isBlocked?:   boolean;
           }>();
 
           if (dbUser) {
+            if (dbUser.isBlocked) {
+              console.log(`[auth] Session invalidated for blocked user: ${user.email}`);
+              return {}; // Return empty token to invalidate session
+            }
             token.userId       = dbUser._id.toString();
             token.role         = dbUser.role;
             token.subscription = dbUser.subscription;

@@ -7,6 +7,7 @@ import { X, Mail, Zap, ArrowRight, Loader2, CheckCircle, AlertCircle } from "luc
 import { signIn } from "next-auth/react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 /* ── Types ── */
 type ModalStep = "email" | "otp" | "success";
@@ -179,10 +180,15 @@ export function AuthModal() {
         setOtpError("Invalid or expired code. Please try again.");
         return;
       }
-      // Direct redirect to dashboard - no intermediate success step
-      router.push("/dashboard"); 
-      router.refresh(); 
-      closeModal(); 
+      // Show Verification Successful step and toast feedback, then redirect after 2s
+      setStep("success");
+      toast.success("Verification Successful!");
+      
+      setTimeout(() => {
+        router.push("/dashboard"); 
+        router.refresh(); 
+        closeModal(); 
+      }, 2000);
     } catch {
       setOtpError("Verification failed. Please try again.");
     } finally {
@@ -419,7 +425,7 @@ export function AuthModal() {
                           <CheckCircle size={32} className="text-green-500" />
                         </div>
                       </motion.div>
-                      <p className="text-sm font-semibold text-green-600">✔ Success! Redirecting to dashboard...</p>
+                      <p className="text-sm font-bold text-green-600">Verification Successful!</p>
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -15,6 +15,8 @@ export interface IAgent extends Document {
   dailyMessageCount:  number;   // resets each UTC day
   dailyResetDate:     string;   // "YYYY-MM-DD" UTC — when counter was last zeroed
   limitEmailSentDate: string;   // "YYYY-MM-DD" UTC — prevents duplicate alert emails
+  dailyLimit:         number;
+  isUnlimited:        boolean;
   createdAt:          Date;
   updatedAt:          Date;
 }
@@ -86,6 +88,14 @@ const AgentSchema = new Schema<IAgent>(
     limitEmailSentDate: {
       type:    String,
       default: "",
+    },
+    dailyLimit: {
+      type:    Number,
+      default: 50,
+    },
+    isUnlimited: {
+      type:    Boolean,
+      default: false,
     },
   },
   { timestamps: true }

@@ -330,6 +330,33 @@ npx tsc --noEmit
 
 MIT © [Shafiqdeveloper786](https://github.com/Shafiqdeveloper786) — see [LICENSE](./LICENSE) for details.
 
+
+---
+
+## ⚙️ Quota Management & Agent Control
+
+### Managing Agent Quotas via Admin Panel
+System administrators can manage agent quotas dynamically from the Admin Panel:
+1. Navigate to the **Agents** tab in the Admin Panel.
+2. In the **Limits & Count Control** column, you can:
+   - **Total Count**: Adjust the lifetime message count manually.
+   - **Daily Limit**: Set a custom daily limit (default is `50` messages) for each specific agent.
+   - **Set to Unlimited**: Toggle a checkbox to exempt specific agents from daily quota limits.
+3. Click the checkmark button next to the fields to save limits. Changes take effect immediately in the database and apply to both current and future daily quotas.
+
+### Unlimited Agent Mode
+When the **Unlimited** mode is enabled for a specific agent:
+- The system completely bypasses the daily rate-limit enforcement block (`enforceFreePlanCap`).
+- Ideal for high-tier or client-facing showcase agents requiring zero-downtime availability.
+- This bypass operates independently of the user's subscription tier.
+
+### Quota Security Design (Fail-Closed Strategy)
+To ensure system protection under load and avoid server exploitation:
+- **Fail-Closed Quota Check**: If MongoDB Atlas or the Quota database becomes temporarily unavailable during a chat request, the system blocks the request with a `503 Service Unavailable` error instead of bypassing the cap. We prioritize platform stability over unlimited unauthorized usage.
+- **Automated Notifications**: As soon as an agent's daily limit is hit:
+  - All subsequent API requests are immediately blocked with a `423 Locked` response.
+  - A single daily automated warning email is instantly dispatched via Nodemailer SMTP to the owner's registered address, detailing the limit depletion and reset time.
+
 ---
 
 ## 🎯 Production Status

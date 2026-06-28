@@ -1133,15 +1133,16 @@ function NotificationsSection({ onDirty, userEmail }: { onDirty: () => void; use
 // ══════════════════════════════════════════════
 // DANGER ZONE — Premium Light Overhaul
 // ══════════════════════════════════════════════
-function DangerSection() {
+function DangerSection({ userEmail }: { userEmail: string }) {
   const [confirm, setConfirm] = useState<"purge" | "delete" | null>(null);
   const [verifyInput, setVerifyInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const PURGE_VERIFY = "DELETE MY DATA";
-  const DELETE_VERIFY = "DELETE MY ACCOUNT";
+  const DELETE_VERIFY = userEmail || "DELETE MY ACCOUNT";
 
   const verifyTarget = confirm === "purge" ? PURGE_VERIFY : DELETE_VERIFY;
-  const isVerified = verifyInput.trim().toUpperCase() === verifyTarget;
+  const isVerified = verifyInput.trim().toLowerCase() === verifyTarget.toLowerCase();
 
   const openModal = (type: "purge" | "delete") => {
     setConfirm(type);
@@ -1151,6 +1152,34 @@ function DangerSection() {
   const closeModal = () => {
     setConfirm(null);
     setVerifyInput("");
+  };
+
+  const handleConfirmAction = async () => {
+    if (!isVerified || loading) return;
+    setLoading(true);
+    
+    try {
+      const url = confirm === "purge" ? "/api/user?purge=true" : "/api/user";
+      const res = await fetch(url, { method: "DELETE" });
+      const data = await res.json();
+      
+      if (res.ok && data.ok) {
+        toast.success(data.message || (confirm === "purge" ? "Data purged successfully." : "Account deleted successfully."));
+        closeModal();
+        
+        if (confirm === "delete") {
+          // Log out and redirect to home page
+          await signOut({ callbackUrl: "/" });
+        }
+      } else {
+        toast.error(data.error ?? "Failed to perform action");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -1222,7 +1251,7 @@ function DangerSection() {
             transition={{ duration: 0.15 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             style={{ background: "rgba(15,23,42,0.4)", backdropFilter: "blur(4px)" }}
-            onClick={(e) => e.target === e.currentTarget && closeModal()}
+            onClick={(e) => e.target === e.currentTarget && !loading && closeModal()}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 12 }}
@@ -1235,7 +1264,8 @@ function DangerSection() {
               <button
                 type="button"
                 onClick={closeModal}
-                className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                disabled={loading}
+                className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-50"
               >
                 <X size={14} />
               </button>
@@ -1273,10 +1303,11 @@ function DangerSection() {
               <input
                 type="text"
                 value={verifyInput}
+                disabled={loading}
                 onChange={(e) => setVerifyInput(e.target.value)}
                 placeholder={`Type "${verifyTarget}"`}
                 autoFocus
-                className="w-full px-3.5 py-2.5 rounded-xl text-[13px] text-slate-800 outline-none transition-all border placeholder:text-slate-400 bg-white mb-5 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                className="w-full px-3.5 py-2.5 rounded-xl text-[13px] text-slate-800 outline-none transition-all border placeholder:text-slate-400 bg-white mb-5 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 disabled:opacity-50"
                 style={{ borderColor: verifyInput.length > 0 && !isVerified ? "#fca5a5" : "#e2e8f0" }}
               />
 
@@ -1285,23 +1316,18 @@ function DangerSection() {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+                  disabled={loading}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  disabled={!isVerified}
-                  onClick={() => {
-                    closeModal();
-                    toast.success(
-                      confirm === "purge"
-                        ? "Purge signal dispatched — all agent data queued for deletion."
-                        : "Account deletion request submitted — you will receive a confirmation email."
-                    );
-                  }}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-rose-600 text-white hover:bg-rose-700 shadow-sm active:scale-[0.97]"
+                  disabled={!isVerified || loading}
+                  onClick={handleConfirmAction}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-rose-600 text-white hover:bg-rose-700 shadow-sm active:scale-[0.97] flex items-center justify-center gap-1.5"
                 >
+                  {loading && <RefreshCw size={13} className="animate-spin" />}
                   {confirm === "purge" ? "Confirm Purge" : "Delete My Account"}
                 </button>
               </div>
@@ -1355,7 +1381,7 @@ export default function SettingsPage() {
               {section === "team" && <TeamSection onDirty={() => setDirty(true)} />}
               {section === "integrations" && <IntegrationsSection />}
               {section === "notifications" && <NotificationsSection onDirty={() => setDirty(true)} userEmail={session?.user?.email ?? ""} />}
-              {section === "danger" && <DangerSection />}
+              {section === "danger" && <DangerSection userEmail={session?.user?.email ?? ""} />}
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { Navbar } from "./Navbar";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { PricingModal } from "@/components/pricing/PricingModal";
 import { useAuthStore } from "@/store/authStore";
+import { FloatingChatButton } from "./FloatingChatButton";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -152,6 +153,7 @@ export function DashboardShell({ children, title }: DashboardShellProps) {
           </main>
         </div>
       </div>
+      {isAuthenticated && <FloatingChatButton />}
     </>
   );
 }

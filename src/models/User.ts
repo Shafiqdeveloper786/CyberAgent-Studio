@@ -6,9 +6,10 @@ export interface IUser extends Document {
   email:        string;
   image?:       string;
   role:         "user" | "admin";
-  subscription: "free" | "starter" | "growth" | "pro";
+  subscription: "free" | "starter" | "growth" | "pro" | "enterprise";
   authMethod:   "google" | "email";
   isVerified:   boolean;
+  isBlocked:    boolean;
   createdAt:    Date;
   updatedAt:    Date;
 }
@@ -39,7 +40,7 @@ const UserSchema = new Schema<IUser>(
     },
     subscription: {
       type:    String,
-      enum:    ["free", "starter", "growth", "pro"],
+      enum:    ["free", "starter", "growth", "pro", "enterprise"],
       default: "free",
     },
     /* ── auth tracking ── */
@@ -49,6 +50,10 @@ const UserSchema = new Schema<IUser>(
       default: "email",
     },
     isVerified: {
+      type:    Boolean,
+      default: false,
+    },
+    isBlocked: {
       type:    Boolean,
       default: false,
     },

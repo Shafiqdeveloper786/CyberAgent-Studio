@@ -52,6 +52,9 @@ interface AdminAgent {
   persona:      string;
   status:       string;
   messageCount: number;
+  usage24h:     number;
+  dailyLimit?:  number;
+  isUnlimited?: boolean;
   createdAt:    string;
   userId:       { email: string; name: string } | null;
 }
@@ -114,6 +117,91 @@ function KebabItem({ onClick, icon, label, danger }: {
   );
 }
 
+function AgentLimitsControl({
+  agent,
+  onUpdate,
+  disabled
+}: {
+  agent: AdminAgent;
+  onUpdate: (id: string, count: number, limit: number, unlimited: boolean, usage24h: number) => Promise<void>;
+  disabled: boolean;
+}) {
+  const [count, setCount] = useState(agent.messageCount);
+  const [limit, setLimit] = useState(agent.dailyLimit ?? 50);
+  const [unlimited, setUnlimited] = useState(agent.isUnlimited ?? false);
+  const [usage24h, setUsage24h] = useState(agent.usage24h);
+  const [changed, setChanged] = useState(false);
+
+  const handleSave = async () => {
+    await onUpdate(agent._id, count, limit, unlimited, usage24h);
+    setChanged(false);
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-3">
+      {/* 24h Usage input */}
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-slate-400">24h:</span>
+        <input
+          type="number"
+          value={usage24h}
+          onChange={(e) => { setUsage24h(Number(e.target.value)); setChanged(true); }}
+          className="w-12 px-1 py-0.5 border border-slate-200 rounded text-center text-slate-700 outline-none focus:border-blue-500 bg-white font-mono"
+          disabled={disabled}
+        />
+      </div>
+
+      {/* Total Count input */}
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-slate-400">Total:</span>
+        <input
+          type="number"
+          value={count}
+          onChange={(e) => { setCount(Number(e.target.value)); setChanged(true); }}
+          className="w-12 px-1 py-0.5 border border-slate-200 rounded text-center text-slate-700 outline-none focus:border-blue-500 bg-white font-mono"
+          disabled={disabled}
+        />
+      </div>
+
+      {/* Daily Limit input */}
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-slate-400">Daily Limit:</span>
+        <input
+          type="number"
+          value={limit}
+          onChange={(e) => { setLimit(Number(e.target.value)); setChanged(true); }}
+          className="w-12 px-1 py-0.5 border border-slate-200 rounded text-center text-slate-700 outline-none focus:border-blue-500 bg-white font-mono disabled:opacity-50"
+          disabled={disabled || unlimited}
+        />
+      </div>
+
+      {/* Unlimited Toggle */}
+      <label className="flex items-center gap-1 cursor-pointer select-none text-[10px] font-semibold text-slate-500">
+        <input
+          type="checkbox"
+          checked={unlimited}
+          onChange={(e) => { setUnlimited(e.target.checked); setChanged(true); }}
+          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          disabled={disabled}
+        />
+        <span>Unlimited</span>
+      </label>
+
+      {/* Save Button */}
+      {changed && (
+        <button
+          onClick={handleSave}
+          disabled={disabled}
+          className="p-1 rounded bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 hover:text-blue-700 active:scale-95 transition-all"
+          title="Save Limits"
+        >
+          <Check size={12} className="stroke-[2.5]" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════
    Main Admin Page
 ═══════════════════════════════════════════ */
@@ -128,6 +216,7 @@ export default function AdminPage() {
   const [error,     setError]     = useState("");
   const [tab,       setTab]       = useState<AdminTab>("users");
   const [toast,     setToast]     = useState("");
+  const [actionPending, setActionPending] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
@@ -378,48 +467,179 @@ export default function AdminPage() {
 
   /* ── Actions ── */
   const blockUser = async (id: string, block: boolean) => {
-    await fetch(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: block ? "block" : "unblock" }) });
-    setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, isBlocked: block } : u)));
-    if (selectedUser && selectedUser._id === id) {
-      setSelectedUser((prev) => prev ? { ...prev, isBlocked: block } : null);
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, { 
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ action: block ? "block" : "unblock" }) 
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, isBlocked: block } : u)));
+        if (selectedUser && selectedUser._id === id) {
+          setSelectedUser((prev) => prev ? { ...prev, isBlocked: block } : null);
+        }
+        showToast(block ? "User blocked" : "User unblocked");
+      } else {
+        showToast(data.error ?? "Failed to update user status");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Network error occurred");
+    } finally {
+      setActionPending(false);
     }
-    showToast(block ? "User blocked" : "User unblocked");
   };
 
   const promoteUser = async (id: string) => {
-    await fetch(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "promote" }) });
-    setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, role: "admin" } : u)));
-    if (selectedUser && selectedUser._id === id) {
-      setSelectedUser((prev) => prev ? { ...prev, role: "admin" } : null);
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, { 
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ action: "promote" }) 
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, role: "admin" } : u)));
+        if (selectedUser && selectedUser._id === id) {
+          setSelectedUser((prev) => prev ? { ...prev, role: "admin" } : null);
+        }
+        showToast("User promoted to admin");
+      } else {
+        showToast(data.error ?? "Failed to promote user");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Network error occurred");
+    } finally {
+      setActionPending(false);
     }
-    showToast("User promoted to admin");
   };
 
   const updatePlan = async (id: string, plan: string) => {
-    await fetch(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_plan", plan }) });
-    setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, subscription: plan } : u)));
-    showToast("Plan updated");
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, { 
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ action: "update_plan", plan }) 
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, subscription: plan } : u)));
+        if (selectedUser && selectedUser._id === id) {
+          setSelectedUser((prev) => prev ? { ...prev, subscription: plan } : null);
+        }
+        showToast("Plan updated");
+      } else {
+        showToast(data.error ?? "Failed to update plan");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Network error occurred");
+    } finally {
+      setActionPending(false);
+    }
   };
 
   const toggleAgent = async (id: string) => {
-    const res = await fetch(`/api/admin/agents/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "toggle" }) });
-    const data = await res.json();
-    if (data.ok) {
-      setAgents((prev) => prev.map((a) => (a._id === id ? { ...a, status: data.status } : a)));
-      showToast(`Agent ${data.status === "active" ? "started" : "stopped"}`);
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/admin/agents/${id}`, { 
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ action: "toggle" }) 
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setAgents((prev) => prev.map((a) => (a._id === id ? { ...a, status: data.status } : a)));
+        showToast(`Agent ${data.status === "active" ? "started" : "stopped"}`);
+      } else {
+        showToast(data.error ?? "Failed to toggle agent status");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Network error occurred");
+    } finally {
+      setActionPending(false);
     }
   };
 
   const purgeKnowledge = async (id: string) => {
-    const res = await fetch(`/api/admin/agents/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "purge" }) });
-    const data = await res.json();
-    showToast(`Knowledge base purged (${data.deletedCount ?? 0} files removed)`);
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/admin/agents/${id}`, { 
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ action: "purge" }) 
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        showToast(`Knowledge base purged (${data.deletedCount ?? 0} files removed)`);
+      } else {
+        showToast(data.error ?? "Failed to purge knowledge base");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Network error occurred");
+    } finally {
+      setActionPending(false);
+    }
   };
 
   const resetMessageCount = async (id: string) => {
-    await fetch(`/api/admin/agents/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "quota", messageCount: 0 }) });
-    setAgents((prev) => prev.map((a) => (a._id === id ? { ...a, messageCount: 0 } : a)));
-    showToast("Message count reset");
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/admin/agents/${id}`, { 
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ action: "quota", messageCount: 0 }) 
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setAgents((prev) => prev.map((a) => (a._id === id ? { ...a, messageCount: 0 } : a)));
+        showToast("Message count reset");
+      } else {
+        showToast(data.error ?? "Failed to reset message count");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Network error occurred");
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const updateAgentLimits = async (id: string, messageCount: number, dailyLimit: number, isUnlimited: boolean, usage24h: number) => {
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      const res = await fetch(`/api/admin/agents/${id}`, { 
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ action: "update_limits", messageCount, dailyLimit, isUnlimited, last24hUsage: usage24h }) 
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setAgents((prev) => prev.map((a) => (a._id === id ? { ...a, messageCount, dailyLimit, isUnlimited, usage24h } : a)));
+        showToast("Limits updated successfully");
+      } else {
+        showToast(data.error ?? "Failed to update limits");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Network error occurred");
+    } finally {
+      setActionPending(false);
+    }
   };
 
   const handleBlockConfirm = (id: string, block: boolean) => {
@@ -819,7 +1039,8 @@ export default function AdminPage() {
                         <th className="text-left px-4 py-3 font-semibold text-slate-600">Owner</th>
                         <th className="text-left px-4 py-3 font-semibold text-slate-600">Persona</th>
                         <th className="text-center px-4 py-3 font-semibold text-slate-600">Status</th>
-                        <th className="text-right px-4 py-3 font-semibold text-slate-600">Messages</th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-600">Last 24h Usage</th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-600">Limits & Count Control</th>
                         <th className="text-right px-4 py-3 font-semibold text-slate-600">Created</th>
                         <th className="text-center px-4 py-3 font-semibold text-slate-600 w-16">Actions</th>
                       </tr>
@@ -833,7 +1054,10 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-center">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${a.status === "active" ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>{a.status}</span>
                           </td>
-                          <td className="px-4 py-3 text-right text-slate-500">{a.messageCount}</td>
+                          <td className="px-4 py-3 text-center font-semibold text-slate-700">{a.usage24h}</td>
+                          <td className="px-4 py-3 text-center">
+                            <AgentLimitsControl agent={a} onUpdate={updateAgentLimits} disabled={actionPending} />
+                          </td>
                           <td className="px-4 py-3 text-right text-slate-400">{new Date(a.createdAt).toLocaleDateString()}</td>
                           <td className="px-4 py-3 text-center">
                             <KebabMenu>
@@ -995,6 +1219,7 @@ export default function AdminPage() {
                 onBlock={handleBlockConfirm}
                 onPromote={handlePromoteConfirm}
                 onUpdatePlan={updatePlan}
+                isUpdating={actionPending}
               />
             )}
           </>
@@ -1058,9 +1283,10 @@ interface UserDetailModalProps {
   onBlock: (id: string, block: boolean) => void;
   onPromote: (id: string) => void;
   onUpdatePlan: (id: string, plan: string) => Promise<void>;
+  isUpdating?: boolean;
 }
 
-function UserDetailModal({ user, onClose, onBlock, onPromote, onUpdatePlan }: UserDetailModalProps) {
+function UserDetailModal({ user, onClose, onBlock, onPromote, onUpdatePlan, isUpdating }: UserDetailModalProps) {
   const [modalTab, setModalTab] = useState<"overview" | "payments">("overview");
   const [payments, setPayments] = useState<any[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
@@ -1158,7 +1384,8 @@ function UserDetailModal({ user, onClose, onBlock, onPromote, onUpdatePlan }: Us
                     {user.role !== "admin" && (
                       <button
                         onClick={() => onPromote(user._id)}
-                        className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                        disabled={isUpdating}
+                        className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors disabled:opacity-50"
                       >
                         <Crown size={12} /> Promote
                       </button>
@@ -1171,8 +1398,9 @@ function UserDetailModal({ user, onClose, onBlock, onPromote, onUpdatePlan }: Us
                   <div className="mt-1">
                     <select
                       value={user.subscription || "free"}
+                      disabled={isUpdating}
                       onChange={(e) => onUpdatePlan(user._id, e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800 font-semibold focus:outline-none focus:border-blue-500"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800 font-semibold focus:outline-none focus:border-blue-500 disabled:opacity-50"
                     >
                       <option value="free">Free</option>
                       <option value="starter">Starter</option>
@@ -1216,13 +1444,14 @@ function UserDetailModal({ user, onClose, onBlock, onPromote, onUpdatePlan }: Us
                   </div>
                   <button
                     onClick={() => onBlock(user._id, !user.isBlocked)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                    disabled={isUpdating}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border disabled:opacity-50 ${
                       user.isBlocked
                         ? "bg-white hover:bg-slate-50 border-slate-200 text-slate-700"
                         : "bg-rose-500 hover:bg-rose-600 border-rose-600 text-white shadow-sm"
                     }`}
                   >
-                    {user.isBlocked ? "Unblock User" : "Block User"}
+                    {isUpdating ? "Processing..." : user.isBlocked ? "Unblock User" : "Block User"}
                   </button>
                 </div>
               </div>

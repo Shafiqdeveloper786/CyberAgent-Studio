@@ -54,11 +54,23 @@ export function AgentEmbedScript({
   useEffect(() => {
     setMounted(true);
 
-    /* Never inject inside the widget iframe route — the root layout runs for
-       /widget/[agentId] too, which would mount a second launcher bubble on top
-       of the chat input. embed.js also guards via window !== window.top, but
-       skipping the script injection entirely avoids the wasted network request. */
-    if (window.location.pathname.startsWith("/widget/")) return;
+    /* Never inject inside the widget iframe or any dashboard/admin builder routes
+       to prevent rendering duplicate client floating widgets on builder screens. */
+    const path = window.location.pathname;
+    if (
+      path.startsWith("/widget/") ||
+      path.startsWith("/dashboard") ||
+      path.startsWith("/admin") ||
+      path.startsWith("/settings") ||
+      path.startsWith("/knowledge-base") ||
+      path.startsWith("/analytics") ||
+      path.startsWith("/embed-code") ||
+      path.startsWith("/workflow") ||
+      path.startsWith("/auth") ||
+      path.startsWith("/support")
+    ) {
+      return;
+    }
 
     /* Prevent duplicate injection across HMR reloads or StrictMode
        double-invocations.                                               */

@@ -5,6 +5,7 @@ import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 import Agent from "@/models/Agent";
 import Quota from "@/models/Quota";
+import Message from "@/models/Message";
 
 /**
  * GET /api/admin — returns dashboard-wide admin metrics.
@@ -52,12 +53,24 @@ export async function GET() {
       .select("name email isVerified role createdAt authMethod isBlocked subscription")
       .lean();
 
-    const agents = await Agent.find({})
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const usage24h = await Message.aggregate([
+      { $match: { createdAt: { $gte: twentyFourHoursAgo } } },
+      { $group: { _id: "$agentId", count: { $sum: 1 } } }
+    ]);
+    const usageMap = new Map(usage24h.map(item => [item._id.toString(), item.count]));
+
+    const dbAgents = await Agent.find({})
       .sort({ createdAt: -1 })
       .limit(20)
-      .select("name persona status messageCount createdAt userId")
+      .select("name persona status messageCount dailyLimit isUnlimited createdAt userId")
       .populate("userId", "email name")
       .lean();
+
+    const agents = dbAgents.map(agent => ({
+      ...agent,
+      usage24h: usageMap.get(agent._id.toString()) || 0,
+    }));
 
     // Generate user growth data (last 6 months)
     const sixMonthsAgo = new Date();

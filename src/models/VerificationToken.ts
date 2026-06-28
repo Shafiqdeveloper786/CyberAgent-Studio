@@ -1,10 +1,14 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface IVerificationToken extends Document {
-  email:     string;
-  token:     string;
-  expiresAt: Date;
-  createdAt: Date;
+  email:       string;
+  token:       string;
+  expiresAt:   Date;
+  createdAt:   Date;
+  /** Number of failed verification attempts against this token */
+  attempts:    number;
+  /** If set, no verification attempts are accepted until this timestamp */
+  lockedUntil?: Date;
 }
 
 const VerificationTokenSchema = new Schema<IVerificationToken>({
@@ -26,6 +30,14 @@ const VerificationTokenSchema = new Schema<IVerificationToken>({
   createdAt: {
     type:    Date,
     default: Date.now,
+  },
+  attempts: {
+    type:    Number,
+    default: 0,
+  },
+  lockedUntil: {
+    type:     Date,
+    required: false,
   },
 });
 
