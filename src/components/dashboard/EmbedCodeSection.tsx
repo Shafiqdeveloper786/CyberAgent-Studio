@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Copy, Check, AlertCircle, RefreshCw, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { useAgentStore } from "@/store/agentStore";
+import { useClientOrigin } from "@/hooks/useClientOrigin";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -80,12 +81,17 @@ export function EmbedCodeSection() {
   const [keyVisible,   setKeyVisible]   = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
 
-  const origin = typeof window !== "undefined"
-    ? window.location.origin
-    : (process.env.NEXT_PUBLIC_APP_URL
-        ?? process.env.NEXT_PUBLIC_SITE_URL
-        ?? process.env.NEXT_PUBLIC_BASE_URL
-        ?? "https://cyber-agent-studio.vercel.app");
+  /* ── Hydration-safe origin ──────────────────────────────────────────
+     useClientOrigin returns the build-time NEXT_PUBLIC_* fallback for
+     the server render AND React's hydration pass (identical to server
+     HTML → no mismatch), then the real window.location.origin after
+     hydration (e.g. http://localhost:3001 in dev).                    */
+  const origin = useClientOrigin(
+    process.env.NEXT_PUBLIC_APP_URL
+      ?? process.env.NEXT_PUBLIC_SITE_URL
+      ?? process.env.NEXT_PUBLIC_BASE_URL
+      ?? "https://cyber-agent-studio.vercel.app"
+  );
   const widgetUrl = `${origin}/widget/${activeAgentId ?? "YOUR_AGENT_ID"}`;
   const agentIdDisplay = activeAgentId ?? "YOUR_AGENT_ID";
 

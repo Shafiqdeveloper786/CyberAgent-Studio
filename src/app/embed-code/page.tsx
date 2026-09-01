@@ -3,6 +3,7 @@
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { useAgentStore } from "@/store/agentStore";
 import { useEffect, useState } from "react";
+import { useClientOrigin } from "@/hooks/useClientOrigin";
 import {
   Copy, Check, Code2, Globe, Smartphone,
   ExternalLink, Sparkles, Zap, ChevronRight, Star,
@@ -538,18 +539,17 @@ export default function EmbedCodePage() {
       .finally(() => setLoadingMeta(false));
   }, [activeAgentId]);
 
-  /* ── Environment-aware origin ────────────────────────────────────
-     Browser:  window.location.origin — always correct, zero config.
-     SSR/Edge: checks NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SITE_URL,
-               NEXT_PUBLIC_BASE_URL in priority order, falls back to
-               localhost so snippets are never empty during development.
-  ────────────────────────────────────────────────────────────────── */
-  const siteOrigin = typeof window !== "undefined"
-    ? window.location.origin
-    : (process.env.NEXT_PUBLIC_APP_URL
-        ?? process.env.NEXT_PUBLIC_SITE_URL
-        ?? process.env.NEXT_PUBLIC_BASE_URL
-        ?? "http://localhost:3000");
+  /* ── Hydration-safe origin ───────────────────────────────────────
+     useClientOrigin emits the build-time fallback during SSR & React's
+     hydration pass (matches server HTML), then the real
+     window.location.origin after hydration so the snippets always
+     reference the live runtime host.                                */
+  const siteOrigin = useClientOrigin(
+    process.env.NEXT_PUBLIC_APP_URL
+      ?? process.env.NEXT_PUBLIC_SITE_URL
+      ?? process.env.NEXT_PUBLIC_BASE_URL
+      ?? "http://localhost:3000"
+  );
 
   /* ── Resolved values (real data when available, placeholders otherwise) ── */
   const agentId     = activeAgentId        ?? "YOUR_AGENT_ID";
