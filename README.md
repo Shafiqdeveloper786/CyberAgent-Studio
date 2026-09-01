@@ -58,7 +58,7 @@
 ├──────────────────┬──────────────────┬──────────────────────────────┤
 │  FRONTEND        │  BACKEND         │  INFRASTRUCTURE               │
 │  Next.js 16      │  App Router API  │  MongoDB Atlas (Vector DB)    │
-│  Tailwind v4     │  NextAuth v4     │  Groq LLM (llama-3.3-70b)    │
+│  Tailwind v4     │  NextAuth v4     │  Groq LLM (GPT-OSS 120B)      │
 │  Framer Motion   │  Nodemailer SMTP │  HuggingFace Embeddings       │
 │  Lucide Icons    │  Mongoose ORM    │  Vercel Edge Network          │
 │  Zustand         │  Groq SDK        │  Production-Ready             │
